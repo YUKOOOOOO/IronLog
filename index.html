@@ -1,0 +1,2177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0D0F12">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="IronLog">
+<meta name="description" content="本地优先的极简健身追踪与 AI 教练">
+<title>IronLog · 极简健身追踪 完整版</title>
+<!-- IronLog 完整版：单文件、零依赖、双击即用、纯本地存储。
+     同一份代码同时用于浏览器 / PWA 与 Android WebView 壳（特性检测自动适配）；
+     同目录的 manifest.webmanifest / sw.js / icons 可提供 PWA 安装能力。 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<style>
+/* ============================================================
+   IronLog · Design tokens & base
+   ============================================================ */
+:root{
+  --bg:#0D0F12; --card:#181B20; --card2:#1E2229; --card3:#242932;
+  --line:#2A3038; --line2:#353D47;
+  --txt:#EDF1F5; --dim:#929BA8; --muted:#5F6875;
+  --acc:#10B981; --acc-dim:#0B7F5B; --acc-soft:rgba(16,185,129,.13);
+  --blue:#3B82F6; --blue-soft:rgba(59,130,246,.14);
+  --warn:#F5A524; --danger:#F0585B; --purple:#A78BFA;
+  --r:18px; --r2:13px;
+  --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:#07090B;color:var(--txt)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","Microsoft YaHei","Segoe UI",Roboto,sans-serif;
+  font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased;
+  overscroll-behavior-y:none;touch-action:manipulation;
+}
+#app{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);position:relative;overflow:hidden;
+  box-shadow:0 0 80px rgba(0,0,0,.6)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{border:0;background:none;cursor:pointer;padding:0}
+input,select,textarea{outline:none}
+::-webkit-scrollbar{width:0;height:0}
+.hidden{display:none!important}
+svg{display:block;flex:none}
+.ic{width:18px;height:18px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- header ---------- */
+.top{position:sticky;top:0;z-index:30;padding:calc(var(--sat) + 14px) 16px 11px;
+  background:rgba(13,15,18,.86);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  border-bottom:1px solid rgba(255,255,255,.045)}
+.top-row{display:flex;align-items:center;gap:10px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:9px;font-size:17px;font-weight:750;letter-spacing:-.3px}
+.brand .logo{width:28px;height:28px;border-radius:9px;background:linear-gradient(140deg,var(--acc),#0E7C94);
+  display:grid;place-items:center;color:#04120D;box-shadow:0 4px 16px rgba(16,185,129,.28)}
+.brand .logo .ic{width:17px;height:17px;stroke-width:2.4}
+.brand small{display:block;font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.6px;margin-top:-2px}
+.top-badge{font-size:11px;color:var(--dim);background:var(--card2);border:1px solid var(--line);
+  padding:5px 9px;border-radius:20px;display:flex;align-items:center;gap:5px}
+.top-badge .dot{width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+#view{padding:14px 14px calc(100px + var(--sab));min-height:70vh}
+
+/* ---------- generic ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:15px;margin-bottom:12px}
+.card.tight{padding:12px}
+.card.flat{background:var(--card2);border-color:transparent}
+.sec-title{display:flex;align-items:center;justify-content:space-between;margin:18px 2px 10px;gap:8px}
+.sec-title h2{font-size:13px;margin:0;font-weight:700;letter-spacing:.3px;color:var(--dim);display:flex;align-items:center;gap:7px}
+.sec-title .ic{width:15px;height:15px}
+.sec-title .hint{font-size:11px;color:var(--muted)}
+.row{display:flex;align-items:center;gap:10px}
+.row.between{justify-content:space-between}
+.row.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+.muted{color:var(--muted)} .dim{color:var(--dim)} .acc{color:var(--acc)} .blue{color:var(--blue)}
+.warn{color:var(--warn)} .danger{color:var(--danger)} .purple{color:var(--purple)}
+.t-xs{font-size:11px} .t-sm{font-size:12px} .t-lg{font-size:17px} .t-xl{font-size:25px;font-weight:800;letter-spacing:-1px}
+.bold{font-weight:700} .mono{font-variant-numeric:tabular-nums;font-feature-settings:"tnum"}
+.trunc{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.divider{height:1px;background:var(--line);margin:12px -15px}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:650;padding:3px 8px;border-radius:20px;
+  background:var(--card3);color:var(--dim);border:1px solid var(--line);white-space:nowrap}
+.pill.green{background:var(--acc-soft);color:var(--acc);border-color:rgba(16,185,129,.28)}
+.pill.blue{background:var(--blue-soft);color:var(--blue);border-color:rgba(59,130,246,.28)}
+.pill.warn{background:rgba(245,165,36,.12);color:var(--warn);border-color:rgba(245,165,36,.25)}
+.pill.red{background:rgba(240,88,91,.12);color:var(--danger);border-color:rgba(240,88,91,.25)}
+.chip{display:inline-flex;align-items:center;justify-content:center;gap:5px;min-height:34px;padding:0 12px;border-radius:11px;
+  background:var(--card2);border:1px solid var(--line);color:var(--dim);font-size:12px;font-weight:600;white-space:nowrap;transition:.16s}
+.chip:active{transform:scale(.96)}
+.chip.on{background:var(--acc-soft);border-color:rgba(16,185,129,.45);color:var(--acc)}
+.chip.on.blue{background:var(--blue-soft);border-color:rgba(59,130,246,.45);color:var(--blue)}
+.chip.sm{min-height:28px;padding:0 9px;font-size:11px;border-radius:9px}
+.btn{min-height:42px;padding:0 15px;border-radius:12px;background:var(--card3);border:1px solid var(--line);
+  color:var(--txt);font-weight:650;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;transition:.16s}
+.btn:active{transform:scale(.975)}
+.btn .ic{width:16px;height:16px}
+.btn.primary{background:linear-gradient(135deg,var(--acc),#0AA47C);color:#04140E;border-color:transparent;box-shadow:0 6px 20px rgba(16,185,129,.22)}
+.btn.blue{background:linear-gradient(135deg,var(--blue),#5B6EF5);color:#fff;border-color:transparent}
+.btn.ghost{background:transparent}
+.btn.danger{background:rgba(240,88,91,.1);color:var(--danger);border-color:rgba(240,88,91,.25)}
+.btn.block{width:100%}
+.btn.sm{min-height:32px;font-size:11.5px;padding:0 11px;border-radius:9px}
+.btn[disabled]{opacity:.45;pointer-events:none}
+.seg{display:flex;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg>button{flex:1;min-height:32px;border-radius:9px;font-size:12px;font-weight:650;color:var(--dim);transition:.16s}
+.seg>button.on{background:var(--card3);color:var(--txt);box-shadow:0 2px 8px rgba(0,0,0,.3)}
+.seg>button.on.acc{background:var(--acc-soft);color:var(--acc)}
+.field{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:11px;min-height:42px;padding:10px 12px;font-size:13px;color:var(--txt)}
+.field:focus{border-color:var(--acc)}
+select.field{appearance:none;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23929BA8' stroke-width='2'><path d='m6 9 6 6 6-6'/></svg>");background-repeat:no-repeat;background-position:right 11px center;padding-right:34px}
+label.lbl{display:block;font-size:11px;color:var(--muted);margin:0 0 6px 2px;font-weight:600;letter-spacing:.3px}
+.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px}
+.stat-grid.four{grid-template-columns:repeat(4,1fr)}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:14px;padding:11px 10px}
+.stat .k{font-size:10px;color:var(--muted);font-weight:600;letter-spacing:.4px}
+.stat .v{font-size:19px;font-weight:800;letter-spacing:-.6px;margin-top:3px}
+.stat .v small{font-size:10px;font-weight:600;color:var(--dim);margin-left:2px}
+.bar{height:6px;border-radius:6px;background:var(--card3);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,var(--acc),#4ADE80);transition:width .4s}
+.empty{text-align:center;padding:34px 16px;color:var(--muted);font-size:12px}
+.empty .ic{width:34px;height:34px;margin:0 auto 10px;opacity:.45}
+
+/* ---------- rotation strip ---------- */
+.nodes{display:flex;gap:8px;overflow-x:auto;padding:2px 0 4px;margin:0 -2px;scrollbar-width:none}
+.node{min-width:88px;flex:1;padding:11px 10px;border-radius:14px;background:var(--card);border:1px solid var(--line);
+  text-align:left;position:relative;overflow:hidden;transition:.18s}
+.node:active{transform:scale(.97)}
+.node .nname{font-size:13px;font-weight:750;display:flex;align-items:center;gap:5px}
+.node .nsub{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.node.on{border-color:var(--acc);background:linear-gradient(160deg,rgba(16,185,129,.16),rgba(16,185,129,.04))}
+.node.on:after{content:"";position:absolute;right:-14px;top:-14px;width:44px;height:44px;border-radius:50%;background:rgba(16,185,129,.16)}
+.node .tick{position:absolute;right:8px;top:8px;width:6px;height:6px;border-radius:50%;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+
+/* ---------- exercise card ---------- */
+.ex{background:var(--card);border:1px solid var(--line);border-radius:var(--r);margin-bottom:11px;overflow:hidden}
+.ex.done-all{border-color:rgba(16,185,129,.35)}
+.ex-head{display:flex;align-items:center;gap:10px;padding:13px 13px 11px}
+.ex-idx{width:26px;height:26px;border-radius:9px;background:var(--card3);display:grid;place-items:center;
+  font-size:11px;font-weight:800;color:var(--dim);flex:none}
+.ex.done-all .ex-idx{background:var(--acc-soft);color:var(--acc)}
+.ex-name{font-size:14px;font-weight:700;letter-spacing:-.1px}
+.ex-meta{font-size:10.5px;color:var(--muted);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.ex-body{border-top:1px solid var(--line);padding:9px 11px 11px}
+.sethead{display:grid;grid-template-columns:24px 88px 88px 36px 20px;gap:6px;align-items:center;
+  font-size:10px;color:var(--muted);padding:0 2px 6px;font-weight:650}
+.setrow{display:grid;grid-template-columns:24px 88px 88px 36px 20px;gap:6px;align-items:center;
+  padding:5px 2px;border-radius:10px;position:relative;transition:transform .18s;background:transparent}
+.setrow+.setrow{border-top:1px solid rgba(255,255,255,.035)}
+.setrow.swiped{transform:translateX(-46px)}
+.setrow.done{background:rgba(16,185,129,.055)}
+.setrow .del{position:absolute;right:-40px;top:50%;transform:translateY(-50%);width:36px;height:30px;border-radius:9px;
+  background:rgba(240,88,91,.2);color:var(--danger);display:grid;place-items:center;opacity:0;pointer-events:none;transition:opacity .15s}
+.setrow.swiped .del{opacity:1;pointer-events:auto}
+.setrow .del .ic{width:14px;height:14px}
+.tagbtn{width:24px;height:28px;border-radius:8px;background:var(--card3);border:1px solid var(--line);
+  font-size:10px;font-weight:800;color:var(--dim);display:grid;place-items:center}
+.tagbtn.W{color:var(--warn);border-color:rgba(245,165,36,.35);background:rgba(245,165,36,.1)}
+.tagbtn.D{color:var(--purple);border-color:rgba(167,139,250,.35);background:rgba(167,139,250,.1)}
+.tagbtn.F{color:var(--danger);border-color:rgba(240,88,91,.35);background:rgba(240,88,91,.1)}
+.tagbtn.N{color:var(--blue);border-color:rgba(59,130,246,.3);background:rgba(59,130,246,.08)}
+.step{display:flex;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:9px;height:30px;overflow:hidden}
+.step button{width:25px;height:100%;display:grid;place-items:center;color:var(--dim);flex:none}
+.step button:active{background:var(--card3);color:var(--acc)}
+.step button .ic{width:12px;height:12px;stroke-width:2.6}
+.step .val{flex:1;text-align:center;font-size:12.5px;font-weight:750;font-variant-numeric:tabular-nums;white-space:nowrap}
+.step .val.ghost{color:var(--muted);font-weight:600}
+.check{width:34px;height:30px;border-radius:9px;background:var(--card3);border:1px solid var(--line);
+  display:grid;place-items:center;color:var(--muted)}
+.check .ic{width:16px;height:16px;stroke-width:2.5}
+.check.on{background:var(--acc);border-color:var(--acc);color:#04140E;box-shadow:0 3px 12px rgba(16,185,129,.3)}
+.xbtn{width:20px;height:28px;display:grid;place-items:center;color:var(--muted)}
+.xbtn .ic{width:12px;height:12px}
+.ex-foot{display:flex;gap:7px;padding:2px 11px 12px}
+.ghost-line{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:5px;margin:0 2px 7px}
+.ghost-line .ic{width:12px;height:12px}
+
+/* ---------- big finish button ---------- */
+.finish{width:100%;min-height:56px;border-radius:17px;color:#04140E;font-size:15px;font-weight:800;letter-spacing:.2px;
+  background:linear-gradient(100deg,#10B981,#34D399 45%,#3B82F6);display:flex;align-items:center;justify-content:center;gap:9px;
+  box-shadow:0 10px 30px rgba(16,185,129,.24);position:relative;overflow:hidden;margin-top:6px}
+.finish:after{content:"";position:absolute;top:0;left:-60%;width:40%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.28),transparent);transform:skewX(-20deg);animation:sh 3.4s infinite}
+@keyframes sh{0%{left:-60%}55%,100%{left:130%}}
+.finish:active{transform:scale(.985)}
+.finish .ic{width:19px;height:19px;stroke-width:2.4}
+
+/* ---------- tab bar ---------- */
+.tabbar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;z-index:40;
+  display:grid;grid-template-columns:repeat(4,1fr);padding:8px 6px calc(8px + var(--sab));
+  background:rgba(18,21,25,.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid var(--line)}
+.tabbar button{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 0;color:var(--muted);font-size:10px;font-weight:650;transition:.16s}
+.tabbar button .ic{width:21px;height:21px;stroke-width:1.9}
+.tabbar button.on{color:var(--acc)}
+.tabbar button.on .ic{filter:drop-shadow(0 0 8px rgba(16,185,129,.5))}
+
+/* ---------- rest timer · v1.1 大尺寸醒目提醒 ---------- */
+#rest{position:fixed;top:calc(var(--sat) + 58px);left:50%;transform:translateX(-50%);width:calc(100% - 22px);max-width:458px;z-index:45;
+  border-radius:20px;padding:14px 15px 13px;overflow:hidden;
+  background:linear-gradient(135deg,rgba(11,42,33,.98),rgba(9,28,34,.98) 58%,rgba(13,24,38,.98));
+  border:1.5px solid rgba(16,185,129,.55);
+  box-shadow:0 18px 52px rgba(0,0,0,.72),0 0 0 1px rgba(16,185,129,.08),inset 0 0 36px rgba(16,185,129,.2);
+  animation:restin .32s cubic-bezier(.2,.9,.3,1)}
+#rest:before{content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(120% 90% at 50% -25%,rgba(16,185,129,.2),transparent 70%)}
+@keyframes restin{from{opacity:0;transform:translate(-50%,-20px) scale(.96)}to{opacity:1;transform:translate(-50%,0) scale(1)}}
+.rest-top{display:flex;align-items:center;gap:14px;position:relative}
+.rest-ring{position:relative;width:76px;height:76px;flex:none}
+.rest-ring svg{width:76px;height:76px;transform:rotate(-90deg)}
+.rest-ring .rc-bg{stroke:rgba(255,255,255,.09)}
+.rest-ring .rc-fg{stroke:url(#restGrad);stroke-linecap:round;transition:stroke-dashoffset .3s linear}
+.rest-ring .rt{position:absolute;inset:0;display:grid;place-items:center;font-size:21px;font-weight:850;color:#fff;
+  font-variant-numeric:tabular-nums;letter-spacing:-.5px;text-shadow:0 0 14px rgba(16,185,129,.85)}
+.rest-ring.emoji .rt{font-size:34px}
+.rest-main{flex:1;min-width:0}
+.rest-kicker{font-size:10px;font-weight:800;letter-spacing:1.5px;color:var(--acc);display:flex;align-items:center;gap:6px}
+.rest-kicker .pulse{width:7px;height:7px;border-radius:50%;background:var(--acc);box-shadow:0 0 10px var(--acc);animation:pulse 1.4s infinite}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+.rest-num{font-size:40px;line-height:1.08;font-weight:850;letter-spacing:-2px;color:#fff;
+  font-variant-numeric:tabular-nums;text-shadow:0 0 22px rgba(16,185,129,.5)}
+.rest-num.txt{font-size:26px;letter-spacing:-.6px}
+.rest-sub{font-size:11px;color:var(--dim);margin-top:3px;line-height:1.5}
+.rest-btns{display:flex;gap:7px;margin-top:12px;position:relative}
+.rest-btns button{flex:1;min-height:42px;border-radius:11px;background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.1);font-size:12.5px;font-weight:750;color:var(--txt);display:grid;place-items:center}
+.rest-btns button:active{transform:scale(.96)}
+.rest-btns button.primary{background:linear-gradient(135deg,var(--acc),#0AA47C);color:#04140E;border-color:transparent}
+.rest-btns button.skip{color:var(--muted)}
+#rest.due{border-color:rgba(245,165,36,.7);animation:dueflash .6s ease-in-out 4}
+#rest.due .rest-num{color:var(--warn);text-shadow:0 0 24px rgba(245,165,36,.7)}
+#rest.due .rest-kicker{color:var(--warn)}
+#rest.due .rest-ring .rc-fg{stroke:var(--warn)}
+@keyframes dueflash{0%,100%{box-shadow:0 18px 52px rgba(0,0,0,.72),0 0 0 1px rgba(245,165,36,.2)}
+  50%{box-shadow:0 18px 62px rgba(0,0,0,.8),0 0 0 3px rgba(245,165,36,.55),0 0 46px rgba(245,165,36,.35)}}
+
+/* ---------- sheet / modal ---------- */
+#overlay{position:fixed;inset:0;background:rgba(0,0,0,.66);z-index:50;backdrop-filter:blur(3px);animation:fade .18s}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+#sheet{position:fixed;left:50%;transform:translateX(-50%);bottom:0;width:100%;max-width:480px;z-index:51;
+  background:#15181D;border:1px solid var(--line);border-bottom:0;border-radius:22px 22px 0 0;
+  max-height:86vh;display:flex;flex-direction:column;animation:up .26s cubic-bezier(.2,.9,.3,1)}
+@keyframes up{from{transform:translate(-50%,100%)}to{transform:translate(-50%,0)}}
+.sheet-h{padding:14px 16px 10px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}
+.sheet-h h3{margin:0;font-size:15px;font-weight:750}
+.sheet-b{padding:14px 16px calc(20px + var(--sab));overflow-y:auto;-webkit-overflow-scrolling:touch}
+.sheet-grab{width:36px;height:4px;border-radius:4px;background:var(--line2);margin:8px auto 0}
+.iconbtn{width:30px;height:30px;border-radius:9px;background:var(--card2);display:grid;place-items:center;color:var(--dim)}
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.list-item:last-child{border-bottom:0}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(92px + var(--sab));z-index:60;
+  background:#EDF1F5;color:#101317;font-size:12.5px;font-weight:700;padding:10px 16px;border-radius:22px;
+  box-shadow:0 10px 30px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.22s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis}
+#toast.show{opacity:1;transform:translate(-50%,-6px)}
+
+/* ---------- equipment grid ---------- */
+.eq-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.eq{display:flex;align-items:center;gap:9px;padding:10px;border-radius:13px;background:var(--card2);border:1px solid var(--line);transition:.16s}
+.eq.on{border-color:rgba(16,185,129,.45);background:rgba(16,185,129,.075)}
+.eq .eico{width:30px;height:30px;border-radius:9px;background:var(--card3);display:grid;place-items:center;color:var(--dim);flex:none}
+.eq.on .eico{background:var(--acc-soft);color:var(--acc)}
+.eq .eico .ic{width:16px;height:16px}
+.eq .en{display:block;font-size:11.5px;font-weight:650;line-height:1.55;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.eq .es{display:block;font-size:9.5px;color:var(--muted);margin-top:2px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw{width:32px;height:19px;border-radius:12px;background:var(--card3);border:1px solid var(--line2);position:relative;flex:none;transition:.18s}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:13px;height:13px;border-radius:50%;background:var(--muted);transition:.18s}
+.eq.on .sw{background:var(--acc);border-color:var(--acc)}
+.eq.on .sw:after{left:16px;background:#fff}
+
+/* ---------- analytics ---------- */
+.cal{display:grid;grid-auto-flow:column;grid-template-rows:repeat(7,1fr);gap:3px;overflow-x:auto;padding-bottom:4px}
+.cal i{width:12px;height:12px;border-radius:3px;background:var(--card3);display:block}
+.cal i.l1{background:rgba(16,185,129,.28)} .cal i.l2{background:rgba(16,185,129,.5)}
+.cal i.l3{background:rgba(16,185,129,.75)} .cal i.l4{background:#10B981;box-shadow:0 0 8px rgba(16,185,129,.5)}
+.bodywrap{display:flex;gap:8px;justify-content:center}
+.bodywrap svg{width:47%;height:auto;max-width:170px}
+.rec{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+.rec:last-child{border-bottom:0}
+.rec .rn{width:66px;font-size:11.5px;font-weight:650;flex:none}
+.rec .rb{flex:1}
+.rec .rv{width:40px;text-align:right;font-size:10.5px;color:var(--dim);font-variant-numeric:tabular-nums;flex:none}
+.trend{width:100%;height:130px;display:block}
+.legend{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted)}
+.legend i{width:11px;height:11px;border-radius:3px;display:block}
+
+/* ---------- AI ---------- */
+.ai-hero{border-radius:var(--r);padding:16px;margin-bottom:12px;position:relative;overflow:hidden;
+  background:radial-gradient(120% 140% at 100% 0%,rgba(59,130,246,.22),transparent 55%),linear-gradient(140deg,#182026,#181B20);
+  border:1px solid var(--line)}
+.ai-hero:after{content:"";position:absolute;right:-30px;bottom:-60px;width:150px;height:150px;border-radius:50%;
+  background:radial-gradient(circle,rgba(16,185,129,.14),transparent 70%)}
+.md{font-size:12.5px;line-height:1.75;color:var(--dim);white-space:pre-wrap;word-break:break-word}
+.md b,.md strong{color:var(--txt)}
+.md .hl{color:var(--acc);font-weight:700}
+.rx{background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:11px;margin-bottom:8px;display:flex;gap:10px;align-items:flex-start}
+.rx .rxi{width:27px;height:27px;border-radius:9px;background:var(--acc-soft);color:var(--acc);display:grid;place-items:center;flex:none;font-size:11px;font-weight:800}
+.rx .rxr{font-size:11px;font-weight:750;color:var(--acc);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rx .rxwhy{font-size:10.5px;color:var(--muted);margin-top:4px;line-height:1.5}
+pre.json{background:#0B0E11;border:1px solid var(--line);border-radius:11px;padding:11px;font-size:10px;
+  color:#8AA0B4;overflow:auto;max-height:170px;margin:0;line-height:1.5;font-family:ui-monospace,SFMono-Regular,Consolas,monospace}
+.spin{display:inline-block;width:13px;height:13px;border:2px solid rgba(255,255,255,.25);border-top-color:currentColor;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* ---------- v1.1 增强：折叠 / 全动作库 / 分析范围 / 删除 / 线条热力图 ---------- */
+.ex-head{cursor:pointer;user-select:none;transition:background .15s}
+.ex-head:active{background:rgba(255,255,255,.025)}
+.ex .chev{display:block;transition:transform .22s}
+.ex.collapsed .chev{transform:rotate(-90deg)}
+.ex-sum{display:flex;align-items:center;gap:7px;margin-top:5px;font-size:10.5px;color:var(--muted)}
+.ex-sum .mini{width:56px;height:4px;border-radius:4px;background:var(--card3);overflow:hidden;flex:none}
+.ex-sum .mini i{display:block;height:100%;background:linear-gradient(90deg,var(--acc),#4ADE80);border-radius:4px}
+.ex-sum .ok{color:var(--acc);font-weight:700}
+.sheet-scope{display:flex;gap:5px;margin-bottom:11px}
+.sheet-scope button{flex:1;min-height:36px;border-radius:10px;background:var(--card2);border:1px solid var(--line);
+  font-size:11.5px;font-weight:700;color:var(--dim);line-height:1.25}
+.sheet-scope button.on{background:var(--acc-soft);border-color:rgba(16,185,129,.45);color:var(--acc)}
+.sheet-search{width:100%;background:var(--card2);border:1px solid var(--line);border-radius:11px;min-height:38px;
+  padding:8px 12px;font-size:12.5px;color:var(--txt);margin-bottom:10px}
+.sheet-search:focus{border-color:var(--acc)}
+.list-item .eqflag{font-size:9.5px;color:var(--warn);font-weight:650}
+.scope-card{border-color:rgba(59,130,246,.28);background:linear-gradient(150deg,rgba(59,130,246,.07),var(--card) 55%)}
+.scope-card .field{min-height:38px;padding:7px 10px;font-size:12px}
+.scope-card input[type=date]{color-scheme:dark}
+.scope-note{font-size:10.5px;color:var(--muted);margin-top:10px;line-height:1.6}
+.del-ses{min-width:30px;height:30px;border-radius:9px;background:rgba(240,88,91,.09);
+  border:1px solid rgba(240,88,91,.2);color:var(--danger);display:grid;place-items:center;flex:none}
+.del-ses .ic{width:14px;height:14px}
+.bodywrap svg{width:48%;height:auto;max-width:184px}
+.body-hint{font-size:10px;color:var(--muted);text-align:center;margin-top:8px;line-height:1.55}
+
+/* ---------- v1.2 训练模板 / 简明 AI 建议 ---------- */
+.tpl-top{border:1px solid rgba(16,185,129,.24);border-radius:14px;padding:13px;margin-bottom:13px;
+  background:linear-gradient(150deg,rgba(16,185,129,.09),var(--card) 65%)}
+.tpl-card{border:1px solid var(--line);background:var(--card2);border-radius:13px;padding:12px;margin-bottom:10px}
+.tpl-card .del-ses{min-width:28px;height:28px}
+.del-ses.tpl-save{background:rgba(59,130,246,.1);border-color:rgba(59,130,246,.26);color:var(--blue)}
+.tpl-row{border-top:1px dashed var(--line);margin-top:10px;padding-top:9px}
+.ai-block{border:1px solid var(--line);border-radius:12px;background:var(--card2);padding:11px 12px;margin-top:10px}
+.ai-block.plan{border-color:rgba(59,130,246,.32);background:linear-gradient(150deg,rgba(59,130,246,.09),var(--card2) 70%)}
+.ai-block-t{font-size:11.5px;font-weight:800;color:var(--acc);letter-spacing:.6px;margin-bottom:7px}
+.ai-block.plan .ai-block-t{color:var(--blue)}
+.ai-block .li{font-size:11.5px;color:var(--dim);line-height:1.65;padding:3px 0}
+.ai-block .li b{color:var(--txt)}
+.ai-block .plan-txt{font-size:11.5px;color:var(--dim);line-height:1.75}
+#tplDate,.scope-card input[type=date]{color-scheme:dark}
+</style>
+</head>
+<body>
+<div id="app">
+  <header class="top"><div class="top-row">
+    <div class="brand"><span class="logo"><svg class="ic" viewBox="0 0 24 24"><path d="M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11"/></svg></span>
+      <span>IronLog<small>LOCAL-FIRST TRAINING OS</small></span></div>
+    <div class="top-badge" id="topBadge"><span class="dot"></span><span id="topBadgeText">本地就绪</span></div>
+  </div></header>
+  <main id="view"></main>
+  <nav class="tabbar" id="tabbar"></nav>
+</div>
+<div id="rest" class="hidden"></div>
+<div id="overlay" class="hidden"></div>
+<div id="sheet" class="hidden"></div>
+<div id="toast"></div>
+<input type="file" id="importFile" accept=".json,application/json" hidden>
+
+<script id="appcode">
+/* ==================================================================================
+   IronLog — 单文件模块化架构
+   [1] DATA   静态数据：图标 / 肌群 / 器械 / 分化 / 动作库 / 示例数据
+   [2] STORE  本地持久化 + WebCrypto 密钥加密 + 导入导出
+   [3] ENGINE 轮换 / 动作过滤 / 统计 / 本地智能引擎 / DeepSeek API
+   [4] UI     四个页面的渲染与可视化组件
+   [5] APP    事件总线 / 休息计时器 / 启动引导
+   ================================================================================== */
+(function(){
+'use strict';
+
+/* ==================== [0] NATIVE BRIDGE — Android 壳专用 ====================
+   通过 window.IronNative 检测原生容器。浏览器/PWA 中该对象不存在，
+   所有分支自动回退到原有 Web 实现，同一份代码两处复用。               */
+const Native=(function(){
+  var N=(typeof window!=='undefined'&&window.IronNative)?window.IronNative:null;
+  var pending={},seq=0;
+  function dec(b64){
+    if(!b64)return '';
+    try{
+      var s=atob(b64),u=new Uint8Array(s.length);
+      for(var i=0;i<s.length;i++)u[i]=s.charCodeAt(i);
+      return new TextDecoder('utf-8').decode(u);
+    }catch(e){return '';}
+  }
+  /* Java 侧统一回调：__ironCb(id, ok, httpStatus, base64(body)) */
+  window.__ironCb=function(id,ok,status,b64){
+    var p=pending[id];if(!p)return;delete pending[id];
+    var txt=dec(b64);
+    if(!ok)p.rej(new Error(txt||('原生请求失败 · '+status)));
+    else p.res({status:Number(status)||0,text:txt});
+  };
+  function call(method,args){
+    return new Promise(function(res,rej){
+      if(!N)return rej(new Error('no-native'));
+      var id='n'+(++seq);pending[id]={res:res,rej:rej};
+      try{N[method].apply(N,args.concat([id]));}
+      catch(e){delete pending[id];rej(e);}
+    });
+  }
+  var api={
+    on:!!N,
+    /* 保存到系统「下载」目录，绕过 WebView 不支持 blob: 下载的限制 */
+    save:function(name,text){if(!N)return false;N.saveFile(name,text);return true;},
+    /* 原生 HttpURLConnection 发请求，彻底绕开浏览器 CORS */
+    post:function(url,key,body){return call('httpPost',[url,key,body]);},
+    pick:function(){return call('pickJson',[]);},
+    vib:function(p){if(N)try{N.vibrate(JSON.stringify(Array.isArray(p)?p:[p]));}catch(e){}return true;},
+    keepAwake:function(on){if(N)try{N.setKeepAwake(!!on);}catch(e){}},
+    info:function(){if(!N)return null;try{return JSON.parse(N.info());}catch(e){return null;}}
+  };
+  if(api.on){
+    try{Object.defineProperty(navigator,'vibrate',{configurable:true,value:function(p){return api.vib(p);}});}catch(e){}
+  }
+  return api;
+})();
+
+/* ============================== [1] DATA ============================== */
+const ICONS = {
+  dumbbell:'M6.5 6.5v11M3.5 9v6M17.5 6.5v11M20.5 9v6M6.5 12h11',
+  bolt:'m13 2-9 12h7l-1 8 9-12h-7z',
+  bot:'M12 8V4H8a4 4 0 0 0-4 4v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8a4 4 0 0 0-4-4h-4zM9 13v3M15 13v3M2 12h2M20 12h2',
+  chart:'M3 3v18h18M7 15l4-5 3 3 5-7',
+  gear:'M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2v.2a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-2.9-1.2l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.2-2.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 2.9-1.2V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 2.9 1.2l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0 1.2 2.9h.2a2 2 0 1 1 0 4H21a1.7 1.7 0 0 0-1.6 1z',
+  check:'m5 12 4 4L19 6', plus:'M12 5v14M5 12h14', minus:'M5 12h14', x:'M18 6 6 18M6 6l12 12',
+  down:'m6 9 6 6 6-6', right:'m9 6 6 6-6 6', left:'m15 6-6 6 6 6',
+  timer:'M10 2h4M12 14l3-3M12 22a8 8 0 1 0 0-16 8 8 0 0 0 0 16z',
+  flame:'M12 22c4 0 7-2.7 7-6.5 0-4-3-6-4-9-1 2-2 2.5-3 3-1-3-1-5-1-7-3 3-6 6.5-6 11 0 4.5 3 8.5 7 8.5z',
+  calendar:'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v13a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z',
+  download:'M12 3v12m0 0 4-4m-4 4-4-4M4 17v3h16v-3', upload:'M12 21V9m0 0 4 4m-4-4-4 4M4 7V4h16v3',
+  trash:'M3 6h18M8 6V4h8v2M19 6l-1 15H6L5 6M10 11v6M14 11v6',
+  refresh:'M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5',
+  sparkles:'m12 3 1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6L12 3zM19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z',
+  target:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z',
+  info:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 11v5M12 8h.01',
+  shield:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+  key:'M21 2l-2 2m-7.6 7.6a5 5 0 1 1-7.1 7.1 5 5 0 0 1 7.1-7.1zM15 7l3 3M12.5 9.5 18 4l2 2-5.5 5.5',
+  sliders:'M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6',
+  home:'m3 10 9-7 9 7v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V10zM9 21v-7h6v7',
+  building:'M4 21V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v16M16 9h2a2 2 0 0 1 2 2v10M8 7h4M8 11h4M8 15h4M2 21h20',
+  bike:'M5 19a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 19a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM9 15l3-8 3 8M8 7h3M15 7h3',
+  run:'M13 4a2 2 0 1 0 0 4 2 2 0 0 0 0-4zM9 21l2-6-3-3 1-5 4-2 3 3 3 1M6 15l-2 6',
+  activity:'M3 12h4l3-8 4 16 3-8h4',
+  weight:'M6 8h12l2 13H4L6 8zM9 8V5a3 3 0 0 1 6 0v3',
+  layers:'m12 2 9 5-9 5-9-5 9-5zM3 12l9 5 9-5M3 17l9 5 9-5',
+  clock:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 6v6l4 2',
+  cpu:'M4 4h16v16H4zM9 9h6v6H9zM9 1v3M15 1v3M9 20v3M15 20v3M1 9h3M1 15h3M20 9h3M20 15h3',
+  server:'M4 3h16v7H4zM4 14h16v7H4zM8 6.5h.01M8 17.5h.01',
+  db:'M12 8c4.4 0 8-1.3 8-3s-3.6-3-8-3-8 1.3-8 3 3.6 3 8 3zM4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+  edit:'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L8 18l-4 1 1-4L16.5 3.5z',
+  copy:'M8 8h11v12H8zM5 16H4V4h11v1',
+  heart:'M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.7l-1-1.1a5.5 5.5 0 0 0-7.8 7.8l1 1.1L12 21l7.8-7.5 1-1.1a5.5 5.5 0 0 0 0-7.8z',
+  alert:'m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01',
+  zap:'m13 2-9 12h7l-1 8 9-12h-7z',
+  rotate:'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
+  grid:'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z',
+  filter:'M3 4h18l-7 8v6l-4 2v-8L3 4z',
+  save:'M5 3h12l2 2v16H5zM8 3v6h8V3M8 14h8v7H8z',
+  eye:'M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',
+};
+function icon(n,cls){return '<svg class="ic '+(cls||'')+'" viewBox="0 0 24 24"><path d="'+(ICONS[n]||ICONS.info)+'"/></svg>';}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function fmt(n){if(n==null||isNaN(n))return '0';return (Math.round(n*10)/10).toString();}
+function uid(){return Math.random().toString(36).slice(2,9)+Date.now().toString(36).slice(-4);}
+function pad(n){return n<10?'0'+n:''+n;}
+function dstr(d){d=d||new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());}
+function dadd(s,n){var d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return dstr(d);}
+function daysBetween(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/86400000);}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+const MUSCLES={
+  chest:{n:'胸',front:1},shoulders:{n:'肩前/中束',front:1},biceps:{n:'肱二头',front:1},
+  core:{n:'核心',front:1},quads:{n:'股四头',front:1},calves:{n:'小腿',front:0},
+  back:{n:'背阔/中背',front:0},rearDelts:{n:'三角后束',front:0},triceps:{n:'肱三头',front:0},
+  glutes:{n:'臀',front:0},hamstrings:{n:'腘绳肌',front:0},cardio:{n:'心肺',front:0}
+};
+const MUSCLE_ORDER=['chest','back','shoulders','rearDelts','biceps','triceps','quads','hamstrings','glutes','core','calves'];
+const EQUIPMENT=[
+  {id:'dumbbell',n:'哑铃',s:'Dumbbells',i:'dumbbell',g:'力量',home:1,gym:1},
+  {id:'barbell',n:'杠铃与深蹲架',s:'Barbell & Rack',i:'weight',g:'力量',home:0,gym:1},
+  {id:'hack',n:'哈克深蹲机',s:'Hack Squat (正/反)',i:'layers',g:'力量',home:0,gym:1},
+  {id:'cable',n:'龙门架 / 绳索',s:'Cable Station',i:'sliders',g:'力量',home:0,gym:1},
+  {id:'machines',n:'固定器械',s:'Machines',i:'cpu',g:'力量',home:0,gym:1},
+  {id:'bands',n:'弹力带',s:'Resistance Bands',i:'activity',g:'力量',home:1,gym:1},
+  {id:'bodyweight',n:'徒手',s:'Bodyweight',i:'run',g:'力量',home:1,gym:1},
+  {id:'rower',n:'划船机',s:'Rowing Machine',i:'activity',g:'有氧',home:0,gym:1},
+  {id:'treadmill',n:'跑步机',s:'Treadmill · 大坡度',i:'run',g:'有氧',home:0,gym:1},
+  {id:'bike',n:'动感 / 通勤单车',s:'Bike',i:'bike',g:'有氧',home:0,gym:1}
+];
+const EQ_MAP={};EQUIPMENT.forEach(function(e){EQ_MAP[e.id]=e;});
+
+const NODE_CATALOG={
+  push:{id:'push',n:'推 Push',d:'胸 / 肩 / 三头',m:['chest','shoulders','triceps'],c:'#10B981'},
+  pull:{id:'pull',n:'拉 Pull',d:'背 / 二头 / 后束',m:['back','biceps','rearDelts'],c:'#3B82F6'},
+  legs:{id:'legs',n:'腿 Legs',d:'股四 / 后链 / 臀 / 核心',m:['quads','hamstrings','glutes','core'],c:'#A78BFA'},
+  chest:{id:'chest',n:'胸 Chest',d:'胸 / 三头',m:['chest','triceps'],c:'#10B981'},
+  back:{id:'back',n:'背 Back',d:'背 / 二头 / 后束',m:['back','biceps','rearDelts'],c:'#3B82F6'},
+  shoulders:{id:'shoulders',n:'肩 Shoulders',d:'肩 / 后束',m:['shoulders','rearDelts'],c:'#F5A524'},
+  arms:{id:'arms',n:'手臂 / 核心',d:'二头 / 三头 / 核心',m:['biceps','triceps','core'],c:'#F472B6'},
+  upper:{id:'upper',n:'上肢 Upper',d:'推 + 拉',m:['chest','back','shoulders','biceps','triceps','rearDelts'],c:'#10B981'},
+  lower:{id:'lower',n:'下肢 Lower',d:'腿 / 臀 / 核心',m:['quads','hamstrings','glutes','core','calves'],c:'#A78BFA'},
+  full:{id:'full',n:'全身 Full Body',d:'复合主项 + 核心',m:['chest','back','quads','hamstrings','shoulders','core'],c:'#3B82F6'},
+  cardio:{id:'cardio',n:'有氧体能',d:'划船 / 坡度 / 单车',m:['cardio','core'],c:'#F5A524'}
+};
+const SPLITS={
+  ppl:{n:'三分化 PPL',d:'推 → 拉 → 腿 · 游标轮换',nodes:['push','pull','legs']},
+  bro:{n:'五分化 Bro Split',d:'胸 → 背 → 肩 → 腿 → 手臂',nodes:['chest','back','shoulders','legs','arms']},
+  upperlower:{n:'上下肢二分化',d:'Upper / Lower 交替',nodes:['upper','lower']},
+  fullbody:{n:'全身训练',d:'每次全身 · 高频',nodes:['full']},
+  custom:{n:'自定义轮换',d:'自由编排节点顺序',nodes:[]}
+};
+function splitNodes(split,custom){if(split==='custom')return (custom&&custom.length?custom:['push','pull','legs']).map(function(id){return NODE_CATALOG[id]||NODE_CATALOG.full;});
+  return (SPLITS[split]||SPLITS.ppl).nodes.map(function(id){return NODE_CATALOG[id];});}
+
+/* 动作库 —— [名称, 肌群, 器械, 是否置顶必练, 默认重量, 默认次数] */
+const RAW_STRENGTH=[
+ ['杠铃卧推','chest','barbell',1,60,8],['上斜杠铃卧推','chest','barbell',0,45,10],['杠铃肩推','shoulders','barbell',1,40,8],
+ ['窄距卧推','triceps','barbell',0,45,10],['杠铃划船','back','barbell',1,60,8],['硬拉','hamstrings','barbell',1,100,5],
+ ['杠铃深蹲','quads','barbell',1,80,8],['前蹲','quads','barbell',0,55,8],['杠铃臀推','glutes','barbell',1,80,10],
+ ['杠铃弯举','biceps','barbell',0,30,10],['杠铃耸肩','back','barbell',0,70,12],
+ ['哑铃卧推','chest','dumbbell',1,24,10],['上斜哑铃卧推','chest','dumbbell',0,20,10],['哑铃飞鸟','chest','dumbbell',0,12,12],
+ ['哑铃肩推','shoulders','dumbbell',1,18,10],['哑铃侧平举','shoulders','dumbbell',0,8,14],['俯身哑铃侧平举','rearDelts','dumbbell',0,8,14],
+ ['哑铃过顶臂屈伸','triceps','dumbbell',0,16,12],['哑铃弯举','biceps','dumbbell',1,14,10],['锤式弯举','biceps','dumbbell',0,14,10],
+ ['单臂哑铃划船','back','dumbbell',1,28,10],['哑铃俯身划船','back','dumbbell',0,30,10],
+ ['罗马尼亚哑铃硬拉','hamstrings','dumbbell',1,28,10],['保加利亚分腿蹲','quads','dumbbell',1,20,10],
+ ['哑铃箭步蹲','quads','dumbbell',1,18,10],['哑铃高脚杯深蹲','quads','dumbbell',0,24,12],
+ ['哑铃臀推','glutes','dumbbell',0,30,12],['哑铃俄罗斯转体','core','dumbbell',0,12,16],
+ ['正向哈克深蹲','quads','hack',1,100,10],['反向哈克深蹲','hamstrings','hack',1,90,10],
+ ['哈克机窄距蹲','quads','hack',0,80,12],['哈克机臀主导蹲','glutes','hack',0,80,12],['哈克机提踵','calves','hack',0,100,15],
+ ['绳索下压','triceps','cable',1,25,12],['绳索过顶臂屈伸','triceps','cable',0,20,12],['绳索夹胸','chest','cable',0,20,12],
+ ['高位下拉','back','cable',1,55,10],['坐姿绳索划船','back','cable',0,55,10],['直臂下压','back','cable',0,25,12],
+ ['绳索面拉','rearDelts','cable',1,20,15],['绳索侧平举','shoulders','cable',0,10,12],['绳索弯举','biceps','cable',0,20,12],
+ ['绳索后踢腿','glutes','cable',0,20,12],['绳索卷腹','core','cable',0,30,15],['绳索腿屈伸','quads','cable',0,25,12],
+ ['器械推胸','chest','machines',1,50,10],['蝴蝶机夹胸','chest','machines',0,40,12],['器械肩推','shoulders','machines',0,35,10],
+ ['器械高位划船','back','machines',1,50,10],['腿举','quads','machines',1,120,10],['坐姿腿屈伸','quads','machines',0,45,12],
+ ['俯卧腿弯举','hamstrings','machines',1,40,12],['坐姿腿弯举','hamstrings','machines',0,40,12],
+ ['臀外展机','glutes','machines',0,50,15],['坐姿提踵','calves','machines',0,60,15],['器械卷腹','core','machines',0,40,15],
+ ['弹力带划船','back','bands',1,0,15],['弹力带面拉','rearDelts','bands',1,0,15],['弹力带侧平举','shoulders','bands',0,0,15],
+ ['弹力带下压','triceps','bands',0,0,15],['弹力带臀桥','glutes','bands',1,0,15],['弹力带深蹲','quads','bands',0,0,15],
+ ['俯卧撑','chest','bodyweight',1,0,15],['双杠臂屈伸','triceps','bodyweight',0,0,10],['引体向上','back','bodyweight',1,0,8],
+ ['自重深蹲','quads','bodyweight',1,0,20],['反向挺身','hamstrings','bodyweight',0,0,15],['单腿臀桥','glutes','bodyweight',0,0,15],
+ ['卷腹','core','bodyweight',0,0,20],['登山跑','core','bodyweight',0,0,30],['派克俯卧撑','shoulders','bodyweight',0,0,10],
+ ['平板支撑','core','bodyweight',1,0,60]
+];
+/* 有氧 / 体能：a=强度或坡度, b=时长；presets=[[a,b],...] */
+const RAW_CARDIO=[
+ {name:'划船机金字塔 HIIT',muscle:'cardio',eq:'rower',pinned:1,la:'强度',lb:'秒',bu:'秒',sa:1,sb:15,
+  note:'30s → 45s → 60s → 45s → 30s 经典金字塔',presets:[[6,30],[7,45],[8,60],[7,45],[6,30]]},
+ {name:'划船机 2000m 稳态',muscle:'cardio',eq:'rower',la:'强度',lb:'分钟',bu:'分钟',sa:1,sb:1,presets:[[5,8]]},
+ {name:'划船机 500m 冲刺',muscle:'cardio',eq:'rower',la:'强度',lb:'秒',bu:'秒',sa:1,sb:10,presets:[[9,110],[9,110]]},
+ {name:'15° 坡度走 4km/h',muscle:'cardio',eq:'treadmill',pinned:1,la:'坡度°',lb:'分钟',bu:'分钟',sa:1,sb:5,
+  note:'大坡度低冲击 · 脂肪供能 / 臀腿后链',presets:[[15,10],[15,10],[15,5]]},
+ {name:'跑步机坡度间歇',muscle:'cardio',eq:'treadmill',la:'坡度°',lb:'分钟',bu:'分钟',sa:1,sb:1,
+  presets:[[4,3],[10,2],[4,3],[12,2],[4,3]]},
+ {name:'跑步机轻松慢跑',muscle:'cardio',eq:'treadmill',la:'坡度°',lb:'分钟',bu:'分钟',sa:1,sb:5,presets:[[1,20]]},
+ {name:'动感单车 HIIT',muscle:'cardio',eq:'bike',pinned:1,la:'阻力',lb:'秒',bu:'秒',sa:1,sb:15,
+  presets:[[8,30],[10,45],[12,60],[10,45],[8,30]]},
+ {name:'单车爬坡间歇',muscle:'cardio',eq:'bike',la:'阻力',lb:'分钟',bu:'分钟',sa:1,sb:1,presets:[[8,4],[12,3],[8,4],[12,3]]},
+ {name:'通勤单车有氧',muscle:'cardio',eq:'bike',la:'阻力',lb:'分钟',bu:'分钟',sa:1,sb:5,presets:[[4,30]]},
+ {name:'徒手 Tabata 循环',muscle:'cardio',eq:'bodyweight',pinned:1,la:'轮次',lb:'秒',bu:'秒',sa:1,sb:5,
+  note:'20s 全力 / 10s 休息 × 8 · 徒手无器械',presets:[[1,20],[2,20],[3,20],[4,20],[5,20],[6,20],[7,20],[8,20]]},
+ {name:'波比 + 开合跳循环',muscle:'cardio',eq:'bodyweight',la:'轮次',lb:'秒',bu:'秒',sa:1,sb:10,presets:[[1,40],[2,40],[3,40],[4,40]]},
+ {name:'徒手核心有氧 15 分钟',muscle:'cardio',eq:'bodyweight',la:'强度',lb:'分钟',bu:'分钟',sa:1,sb:5,presets:[[3,15]]}
+];
+function buildLib(){
+  var lib=RAW_STRENGTH.map(function(r){
+    var timeMode=(r[0]==='平板支撑'||r[0]==='登山跑'||r[0]==='卷腹'||r[0]==='反向挺身');
+    return {id:'ex_'+r[0],name:r[0],muscle:r[1],eq:r[2],pinned:!!r[3],mode:'strength',
+      da:r[4],db:r[5],la:'kg',lb:timeMode?'秒':'次',sa:2.5,sb:timeMode?10:1,volume:!timeMode,custom:false};
+  });
+  RAW_CARDIO.forEach(function(r){
+    lib.push({id:'ex_'+r.name,name:r.name,muscle:'cardio',eq:r.eq,pinned:!!r.pinned,mode:'cardio',
+      da:r.presets[0][0],db:r.presets[0][1],la:r.la,lb:r.lb,bu:r.bu,sa:r.sa,sb:r.sb,
+      presets:r.presets,note:r.note||'',volume:false,custom:false});
+  });
+  return lib;
+}
+const LIB=buildLib();
+const LIB_BY_NAME={};LIB.forEach(function(e){LIB_BY_NAME[e.name]=e;});
+const AVOID_TAGS=[
+  {id:'knee',n:'🦵 膝盖微酸'}, {id:'back',n:'🩹 腰部疲劳'}, {id:'shoulder',n:'💢 肩部不适'},
+  {id:'time',n:'⏱ 时间紧迫 30min'}, {id:'sleep',n:'😴 睡眠不足'}, {id:'sore',n:'🔥 全身酸痛'}
+];
+const FEELINGS=[{id:'easy',n:'轻松',c:'#3B82F6'},{id:'ok',n:'适中',c:'#10B981'},{id:'hard',n:'极限',c:'#F0585B'}];
+
+/* 3 条真实历史训练记录（相对今天自动生成日期） */
+function seedSessions(){
+  function mk(dateAgo,node,feeling,minutes,rows){
+    var exs=rows.map(function(r){
+      var lib=LIB_BY_NAME[r[0]]||{name:r[0],muscle:'chest',eq:'dumbbell',mode:'strength',la:'kg',lb:'次',da:0,db:0,sa:2.5,sb:1,volume:true};
+      return {id:uid(),name:r[0],muscle:lib.muscle,eq:lib.eq,mode:lib.mode||'strength',la:lib.la,lb:lib.lb,bu:lib.bu,
+        volume:lib.volume!==false,sets:r[1].map(function(s){return {a:s[0],b:s[1],tag:'N',done:true};})};
+    });
+    var start=Date.now()-dateAgo*86400000;
+    return {id:uid(),date:dadd(dstr(),-dateAgo),split:'ppl',node:node,feeling:feeling,
+      startedAt:start,endedAt:start+minutes*60000,durationMin:minutes,exercises:exs,note:''};
+  }
+  return [
+    mk(6,'push','ok',52,[
+      ['杠铃卧推',[[60,8],[60,8],[60,7],[55,9]]],
+      ['上斜哑铃卧推',[[20,10],[20,10],[20,9]]],
+      ['哑铃肩推',[[18,10],[18,9],[16,10]]],
+      ['绳索下压',[[25,12],[25,12],[22,12]]],
+      ['哑铃侧平举',[[8,14],[8,13]]]
+    ]),
+    mk(4,'pull','hard',46,[
+      ['杠铃划船',[[60,8],[60,8],[60,7]]],
+      ['高位下拉',[[55,10],[55,10],[50,10]]],
+      ['哑铃弯举',[[14,10],[14,9],[12,10]]],
+      ['绳索面拉',[[20,15],[20,15]]]
+    ]),
+    mk(2,'legs','ok',61,[
+      ['杠铃深蹲',[[80,8],[80,8],[80,7],[75,8]]],
+      ['罗马尼亚哑铃硬拉',[[28,10],[28,10],[28,9]]],
+      ['正向哈克深蹲',[[100,10],[100,10],[90,10]]],
+      ['哑铃臀推',[[30,12],[30,12]]],
+      ['平板支撑',[[0,60],[0,60]]]
+    ])
+  ];
+}
+
+/* ============================== [2] STORE ============================== */
+const DB_KEY='ironlog.v1';
+const Store={
+  data:null, memOnly:false,
+  defaults:function(){
+    return {
+      version:1, createdAt:Date.now(),
+      settings:{
+        split:'ppl',customCycle:['push','pull','legs'],cursor:0,profile:'home',
+        equipment:{dumbbell:true,barbell:false,hack:false,cable:false,machines:false,bands:true,bodyweight:true,rower:false,treadmill:false,bike:false},
+        rest:90,restOn:true,bodyweight:70,notify:false,
+        ai:{baseUrl:'https://api.deepseek.com',model:'deepseek-chat',cipher:'',demo:true}
+      },
+      customExercises:[],sessions:seedSessions(),today:null,
+      aiCache:{review:null,prescription:null},avoid:[],templates:[]
+    };
+  },
+  load:function(){
+    try{
+      var raw=localStorage.getItem(DB_KEY);
+      if(raw){this.data=JSON.parse(raw);}
+      else{this.data=this.defaults();}
+    }catch(e){console.warn('storage unavailable',e);this.memOnly=true;this.data=this.defaults();}
+    // 兼容性补全
+    var d=this.defaults();
+    for(var k in d){if(this.data[k]===undefined)this.data[k]=d[k];}
+    for(var s in d.settings){if(this.data.settings[s]===undefined)this.data.settings[s]=d.settings[s];}
+    for(var a in d.settings.ai){if(this.data.settings.ai[a]===undefined)this.data.settings.ai[a]=d.settings.ai[a];}
+    if(!this.data.aiCache)this.data.aiCache={review:null,prescription:null};
+    if(!this.data.avoid)this.data.avoid=[];
+    if(!Array.isArray(this.data.templates))this.data.templates=[];
+    return this.data;
+  },
+  save:function(){
+    try{localStorage.setItem(DB_KEY,JSON.stringify(this.data));}
+    catch(e){this.memOnly=true;console.warn('save failed',e);}
+  },
+  reset:function(){this.data=this.defaults();this.save();},
+  /* 用 WebCrypto 生成不可导出的 AES-GCM 密钥并存于 IndexedDB，密文才进 localStorage */
+  _db:function(){return new Promise(function(res,rej){
+    try{var q=indexedDB.open('ironlog-crypto',1);
+      q.onupgradeneeded=function(){q.result.createObjectStore('keys');};
+      q.onsuccess=function(){res(q.result);};q.onerror=function(){rej(q.error);};
+    }catch(e){rej(e);}
+  });},
+  _key:function(){var self=this;return self._db().then(function(db){return new Promise(function(res,rej){
+    var g=db.transaction('keys','readonly').objectStore('keys').get('ai');
+    g.onsuccess=function(){
+      if(g.result)return res(g.result);
+      if(!window.crypto||!crypto.subtle)return rej(new Error('no subtle'));
+      crypto.subtle.generateKey({name:'AES-GCM',length:256},false,['encrypt','decrypt']).then(function(k){
+        var tx=db.transaction('keys','readwrite');tx.objectStore('keys').put(k,'ai');
+        tx.oncomplete=function(){res(k);};tx.onerror=function(){rej(tx.error);};
+      },rej);
+    };g.onerror=function(){rej(g.error);};
+  });});},
+  encrypt:function(txt){var self=this;if(!txt)return Promise.resolve('');
+    if(!window.crypto||!crypto.subtle)return Promise.resolve('ob:'+btoa(unescape(encodeURIComponent(xor(txt)))));
+    return self._key().then(function(k){
+      var iv=crypto.getRandomValues(new Uint8Array(12));
+      return crypto.subtle.encrypt({name:'AES-GCM',iv:iv},k,new TextEncoder().encode(txt)).then(function(ct){
+        return 'ae:'+b64(iv)+':'+b64(new Uint8Array(ct));
+      });
+    }).catch(function(){return 'ob:'+btoa(unescape(encodeURIComponent(xor(txt))));});},
+  decrypt:function(s){if(!s)return Promise.resolve('');
+    if(s.indexOf('ob:')===0){try{return Promise.resolve(xor(decodeURIComponent(escape(atob(s.slice(3))))));}catch(e){return Promise.resolve('');}}
+    if(s.indexOf('ae:')!==0)return Promise.resolve('');
+    var p=s.split(':');var self=this;
+    return self._key().then(function(k){
+      return crypto.subtle.decrypt({name:'AES-GCM',iv:unb64(p[1])},k,unb64(p[2]));
+    }).then(function(buf){return new TextDecoder().decode(buf);}).catch(function(e){console.warn(e);return '';});}
+};
+function xor(s){var k='ironlog-local-key-2026',o='';for(var i=0;i<s.length;i++)o+=String.fromCharCode(s.charCodeAt(i)^k.charCodeAt(i%k.length));return o;}
+function b64(u8){var s='';for(var i=0;i<u8.length;i++)s+=String.fromCharCode(u8[i]);return btoa(s);}
+function unb64(s){var b=atob(s),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u;}
+function download(name,text,type){
+  if(Native.on){Native.save(name,text);return;}
+  var blob=new Blob([text],{type:type||'application/json;charset=utf-8'}),u=URL.createObjectURL(blob),a=document.createElement('a');
+  a.href=u;a.download=name;document.body.appendChild(a);a.click();
+  setTimeout(function(){document.body.removeChild(a);URL.revokeObjectURL(u);},500);
+}
+function stamp(){var d=new Date();return dstr(d)+'_'+pad(d.getHours())+pad(d.getMinutes());}
+
+/* ============================== [3] ENGINE ============================== */
+const Runtime={tab:'workout',keyPlain:'',sheetFilter:'all',sheetScope:'fit',sheetQuery:'',
+  reviewScope:'14',reviewSessionId:'',reviewFrom:'',reviewTo:'',
+  reviewBusy:false,rxBusy:false,collapsed:{},swiped:null,
+  tplSource:{},tplDate:''};
+const Engine={
+  S:function(){return Store.data;},
+  nodes:function(){return splitNodes(this.S().settings.split,this.S().settings.customCycle);},
+  node:function(id){var ns=this.nodes();for(var i=0;i<ns.length;i++)if(ns[i].id===id)return ns[i];return ns[0];},
+  currentNode:function(){var ns=this.nodes();return ns[clamp(this.S().settings.cursor,0,ns.length-1)]||ns[0];},
+  nextNode:function(){var ns=this.nodes(),c=this.currentNode(),i=ns.findIndex(function(n){return n.id===c.id;});return ns[(i+1)%ns.length];},
+  advance:function(nodeId){var ns=this.nodes(),i=ns.findIndex(function(n){return n.id===nodeId;});this.S().settings.cursor=((i<0?0:i)+1)%ns.length;Store.save();},
+  enabledEq:function(){var e=this.S().settings.equipment,o=[];for(var k in e)if(e[k])o.push(k);return o;},
+  allExercises:function(){return LIB.concat(this.S().customExercises||[]);},
+  /* v1.1 全动作库：不受肌群 / 器械限制，供「添加动作 → 全部范围」使用 */
+  fullPool:function(){
+    var list=this.allExercises().slice();
+    list.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0)||
+      String(a.muscle).localeCompare(String(b.muscle))||a.name.localeCompare(b.name,'zh');});
+    return list;
+  },
+  /* v1.1 分析窗口：近 N 天 / 单次训练 / 指定时间段 */
+  reviewSessions:function(){
+    var ss=this.S().sessions.slice(),sc=Runtime.reviewScope||'14';
+    if(sc==='single'){
+      var id=Runtime.reviewSessionId;
+      return ss.filter(function(x){return x.id===id;});
+    }
+    if(sc==='range'){
+      var f=Runtime.reviewFrom||'0000-01-01',t=Runtime.reviewTo||'9999-12-31';
+      return ss.filter(function(x){return x.date>=f&&x.date<=t;});
+    }
+    var days=Number(sc)||14,cut=dadd(dstr(),-days+1);
+    return ss.filter(function(x){return x.date>=cut;});
+  },
+  scopeLabel:function(){
+    var sc=Runtime.reviewScope||'14',ss=this.reviewSessions();
+    if(sc==='single'){var x=ss[0];return x?('单次训练 · '+x.date):'单次训练 · 未选择';}
+    if(sc==='range')return '指定时间段 · '+(Runtime.reviewFrom||'…')+' ~ '+(Runtime.reviewTo||'…');
+    return '最近 '+sc+' 天';
+  },
+  /* 按给定 sessions 统计肌群有效组（不再依赖「今天」截断，保证单次/时间段准确） */
+  muscleSetsOf:function(sessions){
+    var out={};MUSCLE_ORDER.concat(['cardio']).forEach(function(m){out[m]=0;});
+    (sessions||[]).forEach(function(s){s.exercises.forEach(function(e){
+      e.sets.forEach(function(x){if(x.done)out[e.muscle]=(out[e.muscle]||0)+1;});});});
+    return out;
+  },
+  /* 动态动作池：目标肌群 ∩ 已勾选器械 */
+  pool:function(node){
+    var eq=this.enabledEq(),ms=node?node.m:[];
+    var list=this.allExercises().filter(function(e){return e.mode!=='cardio'&&ms.indexOf(e.muscle)>=0&&eq.indexOf(e.eq)>=0;});
+    list.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0)||a.name.localeCompare(b.name,'zh');});
+    var cardio=this.allExercises().filter(function(e){return e.mode==='cardio'&&eq.indexOf(e.eq)>=0;});
+    cardio.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0);});
+    return {strength:list,cardio:cardio};
+  },
+  lastFor:function(name){
+    var ss=this.S().sessions.slice().sort(function(a,b){return b.date<a.date?-1:1;});
+    for(var i=0;i<ss.length;i++)for(var j=0;j<ss[i].exercises.length;j++)
+      if(ss[i].exercises[j].name===name)return {date:ss[i].date,ex:ss[i].exercises[j]};
+    return null;
+  },
+  makeSetsFrom:function(lib,count,last){
+    var out=[],prev=null;
+    for(var i=0;i<count;i++){
+      var src=last&&last.sets[i]?last.sets[i]:(last&&last.sets[last.sets.length-1]?last.sets[last.sets.length-1]:null);
+      var a=src?src.a:(lib.da||0),b=src?src.b:(lib.db||(lib.mode==='cardio'?30:10));
+      if(lib.presets&&lib.presets[i]){a=lib.presets[i][0];b=lib.presets[i][1];}
+      out.push({a:a,b:b,tag:'N',done:false,ghost:!!src});
+      prev=src;
+    }
+    return out;
+  },
+  exFromLib:function(lib,sets){
+    var info=this.lastFor(lib.name),last=info?info.ex:null;
+    var count=sets||(lib.presets?lib.presets.length:(lib.pinned?4:3));
+    return {id:uid(),name:lib.name,muscle:lib.muscle,eq:lib.eq,mode:lib.mode||'strength',
+      la:lib.la,lb:lib.lb,bu:lib.bu,sa:lib.sa,sb:lib.sb,volume:lib.volume!==false,
+      note:lib.note||'',ghostDate:info?info.date:null,ghost:last?last.sets:null,
+      sets:this.makeSetsFrom(lib,count,last)};
+  },
+  /* 依据分化节点 + 器械库自动生成今日计划（每个肌群挑 1~2 个置顶主项） */
+  plan:function(nodeId){
+    var node=this.node(nodeId),p=this.pool(node),picked=[],byMuscle={};
+    p.strength.forEach(function(e){
+      var c=byMuscle[e.muscle]||0;if(c>=2)return;
+      if(picked.length>=5)return;
+      byMuscle[e.muscle]=c+1;picked.push(e);
+    });
+    // 保证至少覆盖 3 个肌群
+    if(picked.length<3)p.strength.forEach(function(e){if(picked.indexOf(e)<0&&picked.length<4)picked.push(e);});
+    var self=this,exs=picked.map(function(e){return self.exFromLib(e);});
+    return {date:dstr(),nodeId:nodeId,startedAt:Date.now(),feeling:null,finished:false,exercises:exs};
+  },
+  ensureToday:function(){
+    var s=this.S(),t=dstr();
+    if(s.today&&s.today.date===t)return;
+    if(s.today&&!s.today.finished&&s.today.exercises.some(function(e){return e.sets.some(function(x){return x.done;});})){
+      // 昨天未完成的草稿，按已有完成组归档
+      s.sessions.push(this.sessionFrom(s.today,true));
+    }
+    s.today=this.plan(this.currentNode().id);
+    Store.save();
+  },
+  sessionFrom:function(t,partial){
+    var mins=Math.max(5,Math.round((Date.now()-(t.startedAt||Date.now()))/60000));
+    return {id:uid(),date:t.date,split:this.S().settings.split,node:t.nodeId,feeling:t.feeling||null,
+      startedAt:t.startedAt,endedAt:Date.now(),durationMin:mins,
+      exercises:JSON.parse(JSON.stringify((t.exercises||[]).filter(function(e){return !partial||e.sets.some(function(x){return x.done;});}))),
+      note:partial?'跨日自动归档（未完成草稿）':''};
+  },
+  volumeOf:function(ses){
+    var v=0,sets=0,cardioMin=0,done=0;
+    (ses.exercises||[]).forEach(function(e){
+      e.sets.forEach(function(s){if(!s.done)return;done++;sets++;
+        if(e.volume!==false&&e.mode!=='cardio')v+=Number(s.a||0)*Number(s.b||0);
+        if(e.mode==='cardio')cardioMin+=e.bu==='秒'?Number(s.b||0)/60:Number(s.b||0);
+      });
+    });
+    return {volume:v,sets:sets,cardioMin:cardioMin,done:done};
+  },
+  muscleSets:function(sessions,days){
+    var from=dadd(dstr(),-(days||7)-1),out={};MUSCLE_ORDER.concat(['cardio']).forEach(function(m){out[m]=0;});
+    sessions.forEach(function(s){if(s.date<from)return;
+      s.exercises.forEach(function(e){e.sets.forEach(function(x){if(x.done)out[e.muscle]=(out[e.muscle]||0)+1;});});
+    });
+    return out;
+  },
+  /* ================= v1.2 训练模板 ================= */
+  /* 分析窗口内实际练到的主要部位（按有效组数降序），用于让 AI 聚焦「当前训练部位」 */
+  focusMuscles:function(sessions){
+    var sets=this.muscleSetsOf(sessions||this.reviewSessions()),out=[];
+    MUSCLE_ORDER.concat(['cardio']).forEach(function(m){if(sets[m]>0)out.push({id:m,name:(MUSCLES[m]||{}).n||m,sets:sets[m]});});
+    out.sort(function(a,b){return b.sets-a.sets;});
+    return out;
+  },
+  focusText:function(sessions){
+    var f=this.focusMuscles(sessions);
+    if(!f.length){
+      var nd=this.node(this.S().today?this.S().today.nodeId:this.currentNode().id);
+      return (nd.m||[]).map(function(m){return (MUSCLES[m]||{}).n||m;}).join(' / ')+'（今日计划，暂无完成组）';
+    }
+    return f.slice(0,4).map(function(x){return x.name+' '+x.sets+' 组';}).join(' · ');
+  },
+  /* 把某一次训练安排抽成可复用清单（只存安排，不存打卡状态） */
+  templateFrom:function(ses){
+    return (ses.exercises||[]).map(function(e){
+      return {name:e.name,muscle:e.muscle,eq:e.eq,mode:e.mode||'strength',la:e.la,lb:e.lb,bu:e.bu,
+        sa:e.sa,sb:e.sb,volume:e.volume!==false,note:e.note||'',
+        sets:(e.sets||[]).map(function(z){return {a:Number(z.a)||0,b:Number(z.b)||0,tag:z.tag||'N'};})};
+    });
+  },
+  makeTemplate:function(name,ses,sourceLabel){
+    var self=this,exs=this.templateFrom(ses||this.S().today);
+    if(!exs.length)throw new Error('这次训练没有动作，无法保存为模板');
+    return {id:'tpl_'+uid(),name:String(name||'').trim()||('训练模板 '+(this.S().templates.length+1)),
+      nodeId:ses?(ses.nodeId||ses.node||self.currentNode().id):self.currentNode().id,
+      createdAt:Date.now(),source:sourceLabel||('训练 · '+dstr()),
+      muscles:Array.from(new Set(exs.map(function(e){return e.muscle;}))),
+      exercises:exs,sets:exs.reduce(function(a,e){return a+e.sets.length;},0)};
+  },
+  /* 模板动作 → 今日面板动作对象 */
+  exFromTemplate:function(t){
+    var lib=LIB_BY_NAME[t.name]||{la:'kg',lb:'次',sa:2.5,sb:1,volume:true,mode:'strength'};
+    return {id:uid(),name:t.name,muscle:t.muscle,eq:t.eq,mode:t.mode||lib.mode||'strength',
+      la:t.la||lib.la||'kg',lb:t.lb||lib.lb||'次',bu:t.bu||lib.bu,
+      sa:t.sa||lib.sa||2.5,sb:t.sb||lib.sb||1,volume:t.volume!==false,note:t.note||'',
+      fromTemplate:true,ghostDate:null,ghost:null,aiWhy:'',
+      sets:(t.sets||[]).map(function(z){return {a:Number(z.a)||0,b:Number(z.b)||0,tag:z.tag||'N',
+        done:false,touched:false,ghost:false};})};
+  },
+  applyTemplateToToday:function(tpl){
+    var s=this.S(),exs=tpl.exercises.map(this.exFromTemplate,this);
+    s.today={date:dstr(),nodeId:tpl.nodeId||this.currentNode().id,startedAt:Date.now(),
+      feeling:s.today?s.today.feeling:null,finished:false,exercises:exs,
+      fromTemplate:true,templateName:tpl.name};
+    return exs.length;
+  },
+  /* 指定日期导入：今天→今日面板；其它日期→生成/覆盖该日训练记录 */
+  applyTemplateToDate:function(tpl,date){
+    var s=this.S();
+    if(date===dstr())return {mode:'today',count:this.applyTemplateToToday(tpl)};
+    var exs=tpl.exercises.map(this.exFromTemplate,this);
+    exs.forEach(function(e){e.sets.forEach(function(z){z.done=true;z.touched=true;});});
+    var ses={id:date+'|'+(tpl.nodeId||'template'),date:date,node:tpl.nodeId||this.currentNode().id,
+      startedAt:new Date(date+'T12:00:00').getTime(),durationMin:45,feeling:null,
+      fromTemplate:true,templateName:tpl.name,exercises:exs};
+    var idx=-1;
+    for(var i=0;i<s.sessions.length;i++)if(s.sessions[i].date===date){idx=i;break;}
+    if(idx>=0)s.sessions[idx]=ses;else s.sessions.push(ses);
+    s.sessions.sort(function(a,b){return a.date<b.date?-1:1;});
+    return {mode:'session',count:exs.length,replaced:idx>=0};
+  },
+  /* AI 上下文（完全由本地数据构造；v1.1 支持传入指定分析窗口的 sessions） */
+  context:function(sessions){
+    var s=this.S(),recent=(sessions||this.reviewSessions()).slice().sort(function(a,b){return a.date<b.date?-1:1;});
+    var byDay={},byMuscle=this.muscleSetsOf(recent),perExercise={},nodeCount={};
+    recent.forEach(function(x){
+      var v=this.volumeOf(x);byDay[x.date]=Math.round(v.volume);nodeCount[x.node]=(nodeCount[x.node]||0)+1;
+      x.exercises.forEach(function(e){
+        var top=e.sets.filter(function(z){return z.done;});
+        if(top.length){var last=perExercise[e.name]||{date:'',sets:[],volume:0};
+          if(x.date>=last.date)perExercise[e.name]={date:x.date,muscle:e.muscle,equipment:e.eq,
+            sets:top.map(function(z){return {a:z.a,b:z.b};}),volume:top.reduce(function(t,z){return t+z.a*z.b;},0)};}
+      });
+    },this);
+    var push=0,pull=0,quad=0,post=0;
+    ['chest','shoulders','triceps'].forEach(function(m){push+=byMuscle[m]||0;});
+    ['back','biceps','rearDelts'].forEach(function(m){pull+=byMuscle[m]||0;});
+    quad=byMuscle.quads||0;post=(byMuscle.hamstrings||0)+(byMuscle.glutes||0);
+    return {
+      generated_at:new Date().toISOString(),unit:'kg',
+      analysis_scope:this.scopeLabel(),analysis_session_count:recent.length,
+      split:s.settings.split,split_name:(SPLITS[s.settings.split]||{}).n,
+      today_node:s.today?s.today.nodeId:this.currentNode().id,
+      rotation_next_node:this.nextNode().id,
+      available_equipment:this.enabledEq(),avoid_tags:s.avoid||[],
+      today_feeling:(s.today&&s.today.feeling)||null,bodyweight_kg:s.settings.bodyweight,
+      focus_muscles:this.focusMuscles(recent),focus_summary:this.focusText(recent),
+      today_node_muscles:(this.node(s.today?s.today.nodeId:this.currentNode().id).m||[])
+        .map(function(m){return (MUSCLES[m]||{}).n||m;}),
+      analysis_style:'聚焦当前训练部位 · 简明扼要 · 必须给出建议与未来规划',
+      last_14_days:{session_count:recent.length,volume_by_day:byDay,sets_by_muscle:byMuscle,
+        push_sets:push,pull_sets:pull,push_pull_ratio:pull?Math.round(push/pull*100)/100:null,
+        quad_sets:quad,posterior_sets:post,sessions_by_node:nodeCount,
+        per_exercise_last:perExercise,dates:recent.map(function(x){return {date:x.date,node:x.node,volume:Math.round(this.volumeOf(x).volume),feeling:x.feeling};},this)}
+    };
+  },
+  /* ---------- 本地智能引擎（零配置 / 断网可用）：v1.2 聚焦当前部位 + 简明建议 + 未来规划 ---------- */
+  localReview:function(){
+    var c=this.context(),d=c.last_14_days,f=c.focus_muscles,risk='low',adv=[],plan=[];
+    var focus=c.focus_summary,r=d.push_pull_ratio;
+    /* 建议：最多 3 条，每条一句话，只谈本次部位下一练怎么调 */
+    if(r==null){adv.push('窗口内没有拉类记录：下次「'+this.node(c.rotation_next_node).n.split(' ')[0]+'」补 2~3 组划船/下拉');risk='medium';}
+    else if(r>1.35){adv.push('推/拉 '+r+' 偏高：本次推类减 1 组，换 2 组背部动作');risk='medium';}
+    else if(r<0.75){adv.push('推/拉 '+r+' 偏低：下次补 2 组卧推/肩推，拉类维持');}
+    else adv.push('推/拉 '+r+' 均衡：主项维持组数，冲次数上限后再 +2.5kg');
+    var qp=d.quad_sets&&d.posterior_sets?Math.round(d.quad_sets/d.posterior_sets*100)/100:null;
+    if(qp!=null&&qp>1.6){adv.push('股四/后链 '+qp+'：加 2 组罗马尼亚硬拉或腿弯举');if(risk==='low')risk='medium';}
+    if(f.length){
+      var top=f[0];
+      adv.push('主部位「'+top.name+'」'+top.sets+' 组：'+(top.sets>=14?'容量已够，优先提强度而非加组':'下次 +1~2 组至 '+(top.sets+2)+' 组'));
+    }
+    if(d.session_count>=5){adv.push('窗口内 '+d.session_count+' 练：插入 1 天完整休息');risk='high';}
+    if((this.S().today&&this.S().today.feeling)==='hard')adv.push('体感偏疲劳：同部位降载 5~10%，RPE ≤7');
+    adv=adv.slice(0,3);
+    /* 未来规划：围绕当前部位，2~4 周可执行的三步 */
+    var next=this.node(c.rotation_next_node);
+    if(f.length)plan.push('2 周：把「'+f[0].name+'」从 '+f[0].sets+' 组渐进到 '+(f[0].sets+2)+' 组，每次主项 +2.5kg 或 +1~2 次');
+    plan.push('3~4 周：按「'+next.n.split(' ')[0]+'」轮换补失衡部位，同部位间隔 ≥48h；每 4 周减载一周（容量 -30%）');
+    var lines=[
+      '【本次部位】'+focus,
+      '【状态】'+c.analysis_scope+' · '+d.session_count+' 次训练 · 推/拉 '+(r==null?'—':r)+' · 风险'+({low:'低',medium:'中',high:'高'})[risk]
+    ];
+    return {review:lines.join('\n'),risk_level:risk,focus:focus,suggestions:adv,plan:plan,
+      imbalances:adv,source:'local'};
+  },
+  localPrescription:function(){
+    var c=this.context(),s=this.S(),next=this.node(c.rotation_next_node),avoid=s.avoid||[];
+    var timeCrunch=avoid.indexOf('time')>=0,knee=avoid.indexOf('knee')>=0,lowback=avoid.indexOf('back')>=0,
+        shoulder=avoid.indexOf('shoulder')>=0,sore=avoid.indexOf('sore')>=0,sleep=avoid.indexOf('sleep')>=0;
+    var p=this.pool(next),banned=/深蹲|箭步蹲|腿举|哈克|跳跃|跑步/;
+    var list=p.strength.filter(function(e){
+      if(knee&&banned.test(e.name))return false;
+      if(lowback&&/硬拉|划船|深蹲|俯身|挺身/.test(e.name))return false;
+      if(shoulder&&/肩推|侧平举|卧推|臂屈伸/.test(e.name))return false;
+      if(sore&&/硬拉|深蹲/.test(e.name))return false;
+      return true;
+    });
+    if(!list.length)list=p.strength.slice(0,3);
+    var limit=timeCrunch?3:4,chosen=[],seen={};
+    list.forEach(function(e){var k=seen[e.muscle]||0;if(k>=1||chosen.length>=limit)return;seen[e.muscle]=k+1;chosen.push(e);});
+    list.forEach(function(e){if(chosen.length<limit&&chosen.indexOf(e)<0)chosen.push(e);});
+    if(!chosen.length)chosen=p.strength.slice(0,3);
+    var hist=this.lastFor.bind(this),out=chosen.map(function(e){
+      var last=hist(e.name),ex=last?last.ex:null,done=ex?ex.sets.filter(function(z){return z.done;}):[];
+      var w=done.length?done[done.length-1].a:(e.da||0),r=done.length?done[done.length-1].b:(e.db||10);
+      var why='',targetR=String(r)+'-'+String(Number(r)+2);
+      if(!last){why='该动作近 14 天无记录，按器械默认起始负荷建立基线';}
+      else{
+        var allTop=done.length>=3&&done.every(function(z){return Number(z.b)>=Number(r);});
+        var drop=sore||sleep||(c.today_feeling==='hard');
+        if(drop){w=Math.round((Number(w)*0.9)/2.5)*2.5;why='体感/恢复标记偏疲劳，主动降载 10%，先保动作质量';}
+        else if(allTop){w=Number(w)+(e.eq==='bodyweight'||e.eq==='bands'?0:2.5);why='上次 '+Number(r)+' 次全部完成，双渐进 +2.5kg，次数回到区间下限';}
+        else{why='上次 '+Number(w)+'kg × '+Number(r)+' 次未达次数上限，本周先冲次数（+1~2 次）';}
+      }
+      return {name:e.name,muscle:e.muscle,equipment:e.eq,sets:timeCrunch?2:(sore?2:3),reps:targetR,
+        weight_kg:Number(w)||0,rationale:why,tag:'N'};
+    });
+    var notes=[];
+    if(timeCrunch)notes.push('时间紧迫：压缩为 3 个主项 × 2 组，组间休息 60s，优先复合动作');
+    if(knee)notes.push('膝盖避让：已移除深蹲/箭步蹲/腿举类高冲击动作，改用器械孤立与后链');
+    if(lowback)notes.push('腰部避让：已移除硬拉/俯身划船，改用坐姿器械与绳索支撑位');
+    if(shoulder)notes.push('肩部避让：已移除过顶推举与上斜卧推，减少肩峰下撞击');
+    if(sleep||sore)notes.push('恢复优先：整体负荷下调，RPE 控制在 7 以内');
+    if(!notes.length)notes.push('按当前器械库与游标轮换自动生成，主项优先、孤立动作收尾');
+    var nm=next.n.split(' ')[0],main=(c.focus_muscles&&c.focus_muscles[0])?c.focus_muscles[0].name:next.d;
+    var plan=[
+      '本练：'+nm+' '+out.length+' 个主项，先完成目标次数再谈加重量',
+      '2 周：每个主项 +1~2 次或 +2.5kg，同部位间隔 ≥48h',
+      '4 周：复盘「'+main+'」容量曲线，减载一周后重定基线'
+    ];
+    var sug=[(notes[0]||'按当前器械库与轮换自动生成主项'),
+      '组间休息 '+s.settings.rest+'s，主项 RPE 控制在 7~8'];
+    return {next_node:next.id,next_node_name:next.n,focus:next.d,
+      exercises:out,notes:notes.join('；'),suggestions:sug,plan:plan,source:'local'};
+  },
+  /* ---------- DeepSeek / OpenAI 兼容接口 ---------- */
+  hasKey:function(){return !!Runtime.keyPlain&&!this.S().settings.ai.demo;},
+  callAI:function(messages,jsonMode){
+    var cfg=this.S().settings.ai;
+    var url=String(cfg.baseUrl||'https://api.deepseek.com').replace(/\/+$/,'');
+    if(!/\/chat\/completions$/.test(url))url+='/chat/completions';
+    var body={model:cfg.model||'deepseek-chat',messages:messages,temperature:0.4,max_tokens:900};
+    if(jsonMode&&cfg.model!=='deepseek-reasoner')body.response_format={type:'json_object'};
+    /* 原生容器：走 Java 层 HTTP，无同源策略限制，DeepSeek / 中转 / 局域网 http 均可直连 */
+    if(Native.on)return Native.post(url,Runtime.keyPlain,JSON.stringify(body)).then(function(r){
+      if(r.status<200||r.status>=300)throw new Error('HTTP '+r.status+' · '+r.text.slice(0,180));
+      var j;try{j=JSON.parse(r.text);}catch(e){throw new Error('接口未返回 JSON：'+r.text.slice(0,120));}
+      var m=j.choices&&j.choices[0]&&j.choices[0].message;
+      if(!m)throw new Error('接口未返回 message');
+      return m.content||m.reasoning_content||'';
+    });
+    return fetch(url,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+Runtime.keyPlain},
+      body:JSON.stringify(body)}).then(function(r){
+        if(!r.ok)return r.text().then(function(t){throw new Error('HTTP '+r.status+' · '+t.slice(0,180));});
+        return r.json();
+      }).then(function(j){
+        var m=j.choices&&j.choices[0]&&j.choices[0].message;
+        if(!m)throw new Error('接口未返回 message');
+        return m.content||m.reasoning_content||'';
+      }).catch(function(e){
+        if(e instanceof TypeError)throw new Error('网络/CORS 拦截：浏览器无法直连该接口，请改用支持 CORS 的中转或本地模型（Ollama / LM Studio）');
+        throw e;
+      });
+  },
+  parseJSON:function(txt){
+    var t=String(txt||'').replace(/```(?:json)?/gi,'').trim();
+    var a=t.indexOf('{'),b=t.lastIndexOf('}');
+    if(a<0||b<a)throw new Error('AI 未返回 JSON 结构');
+    try{return JSON.parse(t.slice(a,b+1));}catch(e){throw new Error('JSON 解析失败：'+e.message);}
+  },
+  aiReview:function(){
+    var self=this,c=this.context();
+    if(!this.hasKey())return Promise.resolve(this.localReview());
+    var prompt='【分析范围】'+c.analysis_scope+'（'+c.analysis_session_count+' 次训练）\n'+
+      '【当前训练部位】'+c.focus_summary+'\n'+
+      '你是资深力量训练教练。只针对上述当前训练部位做简明复盘，禁止泛泛而谈、禁止复述 JSON 全文。硬性要求：\n'+
+      '1) 全文 ≤160 字，简体中文；不写客套话、不写定义、不列数据清单。\n'+
+      '2) review 只允许两行：第一行「【本次部位】…」，第二行「【状态】…（含推/拉比或组数、风险）」，合计 ≤60 字。\n'+
+      '3) suggestions 最多 3 条，每条 ≤26 字，必须是本次部位下一练怎么调（加/减组、加重量、换动作、休息）。\n'+
+      '4) plan 是未来 2~4 周规划，≤60 字，必须含「渐进」或「减载」的具体节奏。\n'+
+      '5) 只引用 JSON 里的数字，不臆测窗口外训练。\n'+
+      '只返回 JSON：{"review":"两行短文，用\\n分段","risk_level":"low|medium|high","focus":"本次主要部位",'+
+      '"suggestions":["...","...","..."],"plan":"...","imbalances":["..."]}\n\n本地数据：\n'+JSON.stringify(c);
+    return this.callAI([{role:'system',content:'You are a concise strength coach. Answer in Simplified Chinese with ONE valid JSON object only, no markdown, no extra text. Be extremely brief.'},
+      {role:'user',content:prompt}],true).then(function(t){var j=self.parseJSON(t);j.source='ai';return j;});
+  },
+  aiPrescription:function(){
+    var self=this,c=this.context();
+    if(!this.hasKey())return Promise.resolve(this.localPrescription());
+    var prompt='【分析范围】'+c.analysis_scope+'（'+c.analysis_session_count+' 次训练）\n'+
+      '【当前训练部位】'+c.focus_summary+'\n'+
+      '你是力量训练处方师。围绕【游标轮换到的下一分化节点】与当前部位，生成下一练结构化处方。硬性约束：\n'+
+      '1) 只能使用 available_equipment 中的器械动作；2) 遵守 avoid_tags 做关节避让/压缩组数；'+
+      '3) 渐进超负荷：上次次数全部达上限则 +2.5kg，否则 +1~2 次；体感疲劳则降载 10%；'+
+      '4) weight_kg 必须是数字，reps 用 "8-10" 区间字符串；5) rationale ≤20 字，notes ≤40 字，整体务必简明；'+
+      '6) plan 是未来 2~4 周渐进/减载节奏，≤50 字。\n'+
+      '只返回 JSON：{"next_node":"节点id","focus":"...","exercises":[{"name":"动作名","muscle":"肌群id",'+
+      '"equipment":"器械id","sets":3,"reps":"8-10","weight_kg":62.5,"rationale":"..."}],"notes":"...","plan":"..."}\n'+
+      '肌群id 限于：'+MUSCLE_ORDER.join(',')+'\n\n本地数据：\n'+JSON.stringify(c);
+    return this.callAI([{role:'system',content:'You are a concise strength-training prescription engine. Answer with ONE valid JSON object only, no markdown. Be brief.'},
+      {role:'user',content:prompt}],true).then(function(t){var j=self.parseJSON(t);j.source='ai';return j;});
+  },
+  /* 把处方转成今日训练面板 */
+  adopt:function(rx){
+    var s=this.S(),self=this,ns=this.nodes();
+    if(rx.next_node&&ns.some(function(n){return n.id===rx.next_node;}))s.settings.cursor=ns.findIndex(function(n){return n.id===rx.next_node;});
+    var exs=(rx.exercises||[]).map(function(r){
+      var lib=LIB_BY_NAME[r.name]||{name:r.name,muscle:r.muscle||'chest',eq:r.equipment||'dumbbell',mode:'strength',
+        la:'kg',lb:'次',sa:2.5,sb:1,da:0,db:8,volume:true};
+      var w=Number(r.weight_kg);if(isNaN(w))w=parseFloat(r.weight_kg)||lib.da||0;
+      var repMatch=String(r.reps||'8').match(/\d+/),rep=parseInt(repMatch?repMatch[0]:'8',10)||8;
+      var n=clamp(Number(r.sets)||3,1,8),sets=[];
+      for(var i=0;i<n;i++)sets.push({a:w,b:rep,tag:r.tag||'N',done:false,ghost:false});
+      return {id:uid(),name:r.name,muscle:lib.muscle,eq:lib.eq,mode:lib.mode||'strength',la:lib.la,lb:lib.lb,
+        bu:lib.bu,sa:lib.sa,sb:lib.sb,volume:lib.volume!==false,note:'',fromAI:true,
+        ghostDate:null,ghost:null,aiWhy:r.rationale||'',sets:sets};
+    });
+    if(!exs.length)throw new Error('处方中没有可载入的动作');
+    s.today={date:dstr(),nodeId:this.currentNode().id,startedAt:Date.now(),feeling:s.today?s.today.feeling:null,finished:false,exercises:exs,fromAI:true};
+    Store.save();return exs.length;
+  },
+  /* ---------- 导入归一化（兼容 IronLog / OpenGym / Strong / Hevy 基础字段） ---------- */
+  normalizeImport:function(obj){
+    var self=this,out=[];
+    function setsOf(e){
+      var raw=e.sets||e.setList||[];
+      if(!Array.isArray(raw))return [];
+      return raw.map(function(s){
+        var a=Number(s.a!=null?s.a:(s.weight_kg!=null?s.weight_kg:(s.weight!=null?s.weight:(s.kg||0))))||0;
+        var b=Number(s.b!=null?s.b:(s.reps!=null?s.reps:(s.repetitions||0)))||0;
+        return {a:a,b:b,tag:s.tag||s.set_type||'N',done:s.done!==false};
+      });
+    }
+    function exOf(e){
+      var name=e.name||e.exercise_name||e.title||e.exercise||'未命名动作';
+      var lib=LIB_BY_NAME[name]||{muscle:e.muscle||'chest',eq:e.eq||e.equipment||'dumbbell',mode:'strength',la:'kg',lb:'次',sa:2.5,sb:1,volume:true};
+      return {id:uid(),name:name,muscle:e.muscle||lib.muscle,eq:e.eq||lib.eq,mode:lib.mode||'strength',
+        la:lib.la,lb:lib.lb,bu:lib.bu,sa:lib.sa,sb:lib.sb,volume:lib.volume!==false,note:'',ghostDate:null,ghost:null,sets:setsOf(e)};
+    }
+    function sesOf(s,i){
+      var d=(s.date||s.start_time||s.startTime||s.day||dstr()).slice(0,10);
+      if(!/^\d{4}-\d{2}-\d{2}$/.test(d))d=dadd(dstr(),-(i||0));
+      var exs=(s.exercises||s.workout_exercises||s.entries||[]).map(exOf);
+      return {id:s.id||uid(),date:d,split:s.split||'ppl',node:s.node||s.split_node||'push',
+        feeling:s.feeling||null,startedAt:s.startedAt||Date.now(),endedAt:s.endedAt||Date.now(),
+        durationMin:Number(s.durationMin||s.duration_minutes||s.duration||45)||45,exercises:exs,note:s.note||''};
+    }
+    if(obj&&obj.settings&&Array.isArray(obj.sessions)){ // 完整 IronLog 备份
+      return {full:obj,sessions:obj.sessions};
+    }
+    var arr=Array.isArray(obj)?obj:(obj.sessions||obj.workouts||obj.history||obj.data||[]);
+    if(!Array.isArray(arr))throw new Error('无法识别文件结构（需要 sessions / workouts 数组）');
+    return {full:null,sessions:arr.map(sesOf)};
+  },
+  toCSV:function(){
+    var rows=[['date','split','node','exercise','muscle','equipment','set_index','tag','weight_kg','reps','done','volume_kg']];
+    this.S().sessions.slice().sort(function(a,b){return a.date<b.date?-1:1;}).forEach(function(s){
+      s.exercises.forEach(function(e){e.sets.forEach(function(x,i){
+        rows.push([s.date,s.split,s.node,e.name,e.muscle,e.eq,i+1,x.tag,x.a,x.b,x.done?1:0,
+          e.volume!==false&&e.mode!=='cardio'?(Number(x.a)*Number(x.b)):0]);
+      });});
+    });
+    return '\uFEFF'+rows.map(function(r){return r.map(function(c){var v=String(c==null?'':c);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}).join(',');}).join('\r\n');
+  }
+};
+
+/* ============================== [4] UI ============================== */
+const UI={
+  tabDefs:[{id:'workout',n:'今日训练',i:'dumbbell'},{id:'ai',n:'AI 教练',i:'bot'},
+           {id:'analytics',n:'历史肌群',i:'chart'},{id:'settings',n:'设置器械',i:'gear'}],
+  renderTabs:function(){
+    document.getElementById('tabbar').innerHTML=this.tabDefs.map(function(t){
+      return '<button data-act="tab" data-tab="'+t.id+'" class="'+(Runtime.tab===t.id?'on':'')+'">'+icon(t.i)+'<span>'+t.n+'</span></button>';
+    }).join('');
+    document.getElementById('topBadgeText').textContent=Store.memOnly?'内存模式':(Engine.hasKey()?'AI 已连接':'本地就绪');
+  },
+  render:function(keepScroll){
+    var y=window.scrollY;
+    var h=Runtime.tab==='workout'?this.workout():Runtime.tab==='ai'?this.ai():
+          Runtime.tab==='analytics'?this.analytics():this.settings();
+    document.getElementById('view').innerHTML=h;
+    this.renderTabs();
+    if(keepScroll)window.scrollTo(0,y);else window.scrollTo(0,0);
+  },
+  empty:function(txt,ic){return '<div class="empty">'+icon(ic||'info')+esc(txt)+'</div>';},
+
+  /* ---------------- 今日训练 ---------------- */
+  workout:function(){
+    Engine.ensureToday();
+    var s=Store.data,t=s.today,nodes=Engine.nodes(),cur=t.nodeId,node=Engine.node(cur),v=Engine.volumeOf(t),
+        total=t.exercises.reduce(function(a,e){return a+e.sets.length;},0),
+        done=t.exercises.reduce(function(a,e){return a+e.sets.filter(function(x){return x.done;}).length;},0);
+    var h='';
+    /* 分化游标条 */
+    h+='<div class="row between" style="margin:2px 2px 9px"><div class="t-sm dim bold">'+icon('rotate','')+' 轮换 · '+esc((SPLITS[s.settings.split]||{}).n||'')+'</div>'+
+       '<button class="t-xs dim" data-act="tab" data-tab="settings">切换分化 ›</button></div>';
+    h+='<div class="nodes">'+nodes.map(function(nd){
+      return '<button class="node '+(nd.id===cur?'on':'')+'" data-act="node" data-id="'+nd.id+'">'+
+        (nd.id===cur?'<span class="tick"></span>':'')+
+        '<div class="nname" style="color:'+(nd.id===cur?'var(--acc)':'var(--txt)')+'">'+esc(nd.n.split(' ')[0])+'</div>'+
+        '<div class="nsub">'+esc(nd.d)+'</div></button>';
+    }).join('')+'</div>';
+    var lastSes=s.sessions.slice().sort(function(a,b){return a.date<b.date?1:-1;})[0];
+    h+='<div class="row t-xs dim" style="margin:8px 2px 12px;gap:5px">'+icon('info')+'<span>游标轮换：上次完成「'+
+      esc(lastSes?((NODE_CATALOG[lastSes.node]||{}).n||lastSes.node).split(' ')[0]:'—')+'」→ 当前「'+esc(node.n.split(' ')[0])+'」，点节点可手动改练</span></div>';
+
+    /* 今日概览 */
+    h+='<div class="card tight" style="margin-bottom:12px">'+
+      '<div class="row between" style="margin-bottom:9px"><div><div class="t-lg bold">'+esc(node.n)+'</div>'+
+      '<div class="t-xs muted">'+dstr()+' · '+esc(node.d)+' · '+(t.fromAI?'AI 处方已载入':(t.fromTemplate?'模板「'+esc(t.templateName||'')+'」已载入':'计划已按器械库自动生成'))+'</div></div>'+
+      '<span class="pill '+(done===total&&total?'green':'')+'">'+done+'/'+total+' 组</span></div>'+
+      '<div class="bar"><i style="width:'+(total?done/total*100:0)+'%"></i></div>'+
+      '<div class="row between" style="margin-top:10px">'+
+        '<div class="t-xs dim">容量 <b class="acc mono">'+fmt(v.volume/1000)+' t</b></div>'+
+        '<div class="t-xs dim">用时 <b class="mono">'+Math.max(0,Math.round((Date.now()-t.startedAt)/60000))+' min</b></div>'+
+        '<div class="t-xs dim">有氧 <b class="mono">'+Math.round(v.cardioMin)+' min</b></div>'+
+      '</div></div>';
+
+    /* 体感 */
+    h+='<div class="card tight" style="margin-bottom:12px"><div class="row between">'+
+      '<div class="t-xs dim bold">🔋 今日整体体感（喂给 AI 调重量）</div>'+
+      '<span class="t-xs muted">'+(t.feeling?FEELINGS.filter(function(f){return f.id===t.feeling;})[0].n:'未选择')+'</span></div>'+
+      '<div class="row" style="gap:7px;margin-top:9px">'+FEELINGS.map(function(f){
+        return '<button class="chip sm '+(t.feeling===f.id?'on':'')+'" style="flex:1;'+(t.feeling===f.id?'color:'+f.c+';border-color:'+f.c+'55;background:'+f.c+'18':'')+'" data-act="feeling" data-v="'+f.id+'">'+f.n+'</button>';
+      }).join('')+'</div></div>';
+
+    /* 动作卡 */
+    h+='<div class="sec-title"><h2>'+icon('dumbbell')+'训练动作 · '+t.exercises.length+'</h2><span class="hint">灰字 = 上次数据 · 点 ✓ 直接打卡</span></div>';
+    if(!t.exercises.length)h+=this.empty('当前器械库没有可执行动作，去设置里勾选器械','sliders');
+    t.exercises.forEach(function(e,i){h+=UI.exerciseCard(e,i);});
+
+    /* 添加动作 */
+    h+='<div class="row" style="gap:7px;margin:4px 0 14px">'+
+      '<button class="btn sm block" data-act="addex-open" data-scope="fit">'+icon('plus')+'动作池</button>'+
+      '<button class="btn sm block primary" data-act="addex-open" data-scope="all">'+icon('grid')+'全部动作库</button>'+
+      '<button class="btn sm block" data-act="custom-ex-open">'+icon('edit')+'自定义</button></div>'+
+      '<div class="t-xs muted" style="text-align:center;margin:-6px 0 12px;line-height:1.6">动作池按当前器械联动 · 全部动作库可添加任意器械动作（含自定义）</div>';
+    h+='<div class="row" style="gap:7px;margin:0 0 14px">'+
+      '<button class="btn sm block blue" data-act="tpl-open">'+icon('copy')+'📋 训练模板'+((s.templates||[]).length?' · '+(s.templates||[]).length:'')+'</button>'+
+      '<button class="btn sm block" data-act="tpl-save-today">'+icon('save')+'存为模板</button></div>'+
+      '<div class="t-xs muted" style="text-align:center;margin:-8px 0 12px;line-height:1.6">把常用安排存成模板，下次一键套用或指定日期导入</div>';
+    h+='<button class="finish" data-act="finish">'+icon('bolt')+'⚡ 一键打卡完成今日训练</button>';
+    h+='<div class="t-xs muted" style="text-align:center;margin-top:9px;line-height:1.6">未勾选的组会按当前（幽灵）数值自动补齐并计入汇总<br>纯本地存储 · 断网可用 · 数据只在你手里</div>';
+    return h;
+  },
+  exerciseCard:function(e,i){
+    var open=!Runtime.collapsed[e.id];
+    var done=e.sets.filter(function(x){return x.done;}).length,all=done===e.sets.length&&e.sets.length>0;
+    var ghost=e.ghost&&e.ghost.length?('上次 '+e.ghostDate+' · '+e.ghost.slice(0,3).map(function(g){return fmt(g.a)+'×'+fmt(g.b);}).join(' / ')):'首次记录 · 按默认负荷';
+    var pct=e.sets.length?Math.round(done/e.sets.length*100):0;
+    var h='<div class="ex '+(all?'done-all':'')+(open?'':' collapsed')+'" id="ex_'+e.id+'" data-idx="'+(i+1)+'">'+
+      '<div class="ex-head" data-act="collapse" data-ex="'+e.id+'"><div class="ex-idx">'+(all?icon('check'):(i+1))+'</div>'+
+      '<div class="grow"><div class="ex-name">'+esc(e.name)+'</div><div class="ex-meta">'+
+        '<span class="pill '+(e.mode==='cardio'?'warn':'blue')+'">'+esc((MUSCLES[e.muscle]||{}).n||e.muscle)+'</span>'+
+        '<span>'+esc((EQ_MAP[e.eq]||{}).n||e.eq)+'</span><span>·</span><span>'+done+'/'+e.sets.length+' 组</span>'+
+        (e.fromAI?'<span class="pill green">AI</span>':'')+
+      '</div>'+
+        (open?'':'<div class="ex-sum"><span class="mini"><i style="width:'+pct+'%"></i></span>'+
+          '<span'+(all?' class="ok"':'')+'>'+done+'/'+e.sets.length+' 组'+(all?' · 已完成 ✓':'')+'</span>'+
+          '<span>· 点此展开</span></div>')+
+      '</div>'+
+      '<button class="iconbtn" data-act="collapse" data-ex="'+e.id+'" aria-label="折叠"><span class="chev">'+icon('down')+'</span></button>'+
+      '<button class="iconbtn" data-act="delex" data-ex="'+e.id+'">'+icon('x')+'</button></div>';
+    if(open){
+      h+='<div class="ex-body"><div class="ghost-line">'+icon('copy')+esc(ghost)+'</div>';
+      if(e.aiWhy)h+='<div class="t-xs acc" style="margin:0 2px 8px;line-height:1.55">💡 '+esc(e.aiWhy)+'</div>';
+      if(e.note)h+='<div class="t-xs muted" style="margin:0 2px 8px">'+esc(e.note)+'</div>';
+      h+='<div class="sethead"><span></span><span>'+esc(e.la)+'</span><span>'+esc(e.lb)+'</span><span></span><span></span></div>';
+      e.sets.forEach(function(st,j){h+=UI.setRow(e,st,j);});
+      h+='<div class="ex-foot"><button class="btn sm ghost" style="color:var(--acc)" data-act="addset" data-ex="'+e.id+'">'+icon('plus')+'加一组</button>'+
+        '<span class="grow"></span><span class="t-xs muted" style="align-self:center">左滑删除单组 · 点 W/N/D/F 切组属性</span></div>';
+      h+='</div>';
+    }
+    return h+'</div>';
+  },
+  setRow:function(e,st,j){
+    var g=st.ghost&&!st.done&&!st.touched;
+    return '<div class="setrow '+(st.done?'done':'')+'" data-row="'+e.id+'_'+j+'">'+
+      '<button class="tagbtn '+(st.tag||'N')+'" data-act="tag" data-ex="'+e.id+'" data-i="'+j+'">'+(st.tag||'N')+'</button>'+
+      '<div class="step"><button data-act="step" data-ex="'+e.id+'" data-i="'+j+'" data-f="a" data-d="-1">'+icon('minus')+'</button>'+
+        '<span class="val '+(g?'ghost':'')+'" data-val="'+e.id+'_'+j+'_a">'+fmt(st.a)+'</span>'+
+        '<button data-act="step" data-ex="'+e.id+'" data-i="'+j+'" data-f="a" data-d="1">'+icon('plus')+'</button></div>'+
+      '<div class="step"><button data-act="step" data-ex="'+e.id+'" data-i="'+j+'" data-f="b" data-d="-1">'+icon('minus')+'</button>'+
+        '<span class="val '+(g?'ghost':'')+'" data-val="'+e.id+'_'+j+'_b">'+fmt(st.b)+'</span>'+
+        '<button data-act="step" data-ex="'+e.id+'" data-i="'+j+'" data-f="b" data-d="1">'+icon('plus')+'</button></div>'+
+      '<button class="check '+(st.done?'on':'')+'" data-act="done" data-ex="'+e.id+'" data-i="'+j+'">'+icon('check')+'</button>'+
+      '<button class="xbtn" data-act="delset" data-ex="'+e.id+'" data-i="'+j+'">'+icon('x')+'</button>'+
+      '<button class="del" data-act="delset" data-ex="'+e.id+'" data-i="'+j+'">'+icon('trash')+'</button></div>';
+  },
+  patchSet:function(e,j){
+    var st=e.sets[j],g=st.ghost&&!st.done&&!st.touched;
+    ['a','b'].forEach(function(f){
+      var el=document.querySelector('[data-val="'+e.id+'_'+j+'_'+f+'"]');
+      if(el){el.textContent=fmt(st[f]);el.className='val '+(g?'ghost':'');}
+    });
+    var row=document.querySelector('[data-row="'+e.id+'_'+j+'"]');
+    if(row)row.classList.toggle('done',!!st.done);
+    var chk=row&&row.querySelector('.check');if(chk)chk.classList.toggle('on',!!st.done);
+    var tag=row&&row.querySelector('.tagbtn');if(tag){tag.className='tagbtn '+(st.tag||'N');tag.textContent=st.tag||'N';}
+    // 轻量更新顶部进度条
+    var t=Store.data.today,all=t.exercises.reduce(function(a,x){return a+x.sets.length;},0),
+        dn=t.exercises.reduce(function(a,x){return a+x.sets.filter(function(z){return z.done;}).length;},0);
+    var p=document.querySelector('.card.tight .pill');if(p){p.textContent=dn+'/'+all+' 组';p.className='pill '+(dn===all&&all?'green':'');}
+    var bar=document.querySelector('.card.tight .bar>i');if(bar)bar.style.width=(all?dn/all*100:0)+'%';
+    // 动作卡头部计数与完成态
+    var card=document.getElementById('ex_'+e.id);
+    if(card){
+      var dnEx=e.sets.filter(function(z){return z.done;}).length,allDone=dnEx===e.sets.length;
+      card.classList.toggle('done-all',allDone);
+      var idx=card.querySelector('.ex-idx');if(idx)idx.innerHTML=allDone?icon('check'):(card.getAttribute('data-idx')||'');
+      var meta=card.querySelector('.ex-meta');
+      if(meta){var spans=meta.querySelectorAll('span');if(spans[2])spans[2].textContent='·';if(spans[3])spans[3].textContent=dnEx+'/'+e.sets.length+' 组';}
+    }
+  },
+
+  /* ---------------- AI 教练 ---------------- */
+  ai:function(){
+    var s=Store.data,c=Engine.context(),cache=s.aiCache||{},node=Engine.node(c.rotation_next_node);
+    var h='<div class="ai-hero"><div class="row between"><div><div class="t-xs acc bold" style="letter-spacing:1px">AI COACH · DEEPSEEK READY</div>'+
+      '<div class="t-lg bold" style="margin-top:5px">训练复盘 &amp; 下一练处方</div></div>'+icon('sparkles')+'</div>'+
+      '<div class="t-xs dim" style="margin-top:9px;line-height:1.7">聚焦当前训练部位，简明输出「建议 + 未来规划」。按选定范围（近 N 天 / 单次 / 时间段）计算容量与失衡，再结合下一分化节点生成下一练处方。</div>'+
+      '<div class="row wrap" style="gap:6px;margin-top:11px">'+
+        '<span class="pill '+(Engine.hasKey()?'green':'blue')+'">'+(Engine.hasKey()?'● 在线 · '+esc(s.settings.ai.model):'◉ 本地智能引擎（免 Key）')+'</span>'+
+        '<span class="pill">下一节点 '+esc(node.n)+'</span>'+
+        '<span class="pill">器械 '+c.available_equipment.length+' 项</span>'+
+      '</div></div>';
+
+    /* 避让标签 */
+    h+='<div class="card"><div class="row between"><div class="t-sm bold">🩹 关节 / 状态避让</div><span class="t-xs muted">可多选</span></div>'+
+      '<div class="row wrap" style="gap:7px;margin-top:10px">'+AVOID_TAGS.map(function(t){
+        return '<button class="chip sm '+((s.avoid||[]).indexOf(t.id)>=0?'on':'')+'" data-act="avoid" data-v="'+t.id+'">'+t.n+'</button>';
+      }).join('')+'</div><div class="t-xs muted" style="margin-top:9px">选中后生成处方时自动替换高冲击动作、降载或压缩组数。</div></div>';
+
+    /* v1.1 分析范围选择 */
+    h+=this.reviewScopeCard();
+
+    /* 复盘 */
+    h+='<div class="sec-title"><h2>'+icon('activity')+'① 当前训练复盘</h2><span class="hint">'+esc(Engine.scopeLabel())+' / '+c.last_14_days.session_count+' 次</span></div>';
+    h+='<div class="card"><div class="stat-grid four" style="margin-bottom:12px">'+
+      '<div class="stat"><div class="k">推/拉比</div><div class="v mono">'+(c.last_14_days.push_pull_ratio||'—')+'</div></div>'+
+      '<div class="stat"><div class="k">股四/后链</div><div class="v mono">'+(c.last_14_days.posterior_sets?Math.round(c.last_14_days.quad_sets/c.last_14_days.posterior_sets*100)/100:'—')+'</div></div>'+
+      '<div class="stat"><div class="k">训练次数</div><div class="v mono">'+c.last_14_days.session_count+'</div></div>'+
+      '<div class="stat"><div class="k">总组数</div><div class="v mono">'+Object.keys(c.last_14_days.sets_by_muscle).reduce(function(t,k){return t+c.last_14_days.sets_by_muscle[k];},0)+'</div></div>'+
+      '</div>';
+    h+='<div class="row" style="gap:8px;margin-bottom:12px"><button class="btn primary block" data-act="ai-review" id="btnReview">'+
+      (Runtime.reviewBusy?'<span class="spin"></span> 分析中':icon('sparkles')+'生成 AI 复盘')+'</button></div>';
+    if(cache.review){
+      var r=cache.review;
+      h+='<div class="row between" style="margin-bottom:8px"><span class="pill '+((r.risk_level==='high')?'red':(r.risk_level==='medium'?'warn':'green'))+'">风险 '+
+        ({low:'低',medium:'中',high:'高'})[r.risk_level||'low']+'</span><span class="t-xs muted">'+(r.source==='ai'?'DeepSeek '+esc(s.settings.ai.model):'本地智能引擎')+' · '+esc(r.at||'')+'</span></div>';
+      h+='<div class="md">'+this.md(r.review)+'</div>';
+      if(r.focus)h+='<div class="row wrap" style="gap:6px;margin-top:9px"><span class="pill green">🎯 聚焦 '+esc(r.focus)+'</span></div>';
+      var sug=r.suggestions||r.imbalances||[];
+      if(sug.length)h+='<div class="ai-block"><div class="ai-block-t">✅ 建议 · 针对本次部位</div>'+
+        sug.map(function(x,i){return '<div class="li"><b>'+(i+1)+'.</b> '+esc(x)+'</div>';}).join('')+'</div>';
+      if(r.plan){var pl=Array.isArray(r.plan)?r.plan:[r.plan];
+        h+='<div class="ai-block plan"><div class="ai-block-t">🧭 未来规划</div>'+
+          pl.map(function(x){return '<div class="plan-txt">· '+esc(x)+'</div>';}).join('')+'</div>';}
+    }else h+=this.empty('点上方按钮生成复盘（无 API Key 也能用本地引擎）','sparkles');
+    h+='</div>';
+
+    /* 处方 */
+    h+='<div class="sec-title"><h2>'+icon('target')+'② 下一练智能处方</h2><span class="hint">强制结构化 JSON</span></div>';
+    h+='<div class="card"><button class="btn blue block" data-act="ai-rx" id="btnRx">'+
+      (Runtime.rxBusy?'<span class="spin"></span> 生成中':icon('zap')+'生成「'+esc(node.n)+'」处方')+'</button>';
+    if(cache.prescription){
+      var rx=cache.prescription;
+      h+='<div class="row between" style="margin:13px 0 9px"><div class="t-sm bold">📋 '+esc(rx.focus||rx.next_node_name||node.d)+'</div>'+
+        '<span class="pill green">'+(rx.exercises||[]).length+' 个动作</span></div>';
+      (rx.exercises||[]).forEach(function(x,i){
+        h+='<div class="rx"><div class="rxi">'+(i+1)+'</div><div class="grow"><div class="row between" style="gap:6px">'+
+          '<div class="t-sm bold trunc">'+esc(x.name)+'</div><div class="rxr">'+(x.sets||3)+' × '+(fmt(x.weight_kg)||0)+'kg · '+esc(x.reps||'')+'</div></div>'+
+          '<div class="t-xs muted" style="margin-top:3px">'+esc((MUSCLES[x.muscle]||{}).n||x.muscle||'')+' · '+esc((EQ_MAP[x.equipment]||{}).n||x.equipment||'')+'</div>'+
+          (x.rationale?'<div class="rxwhy">↳ '+esc(x.rationale)+'</div>':'')+'</div></div>';
+      });
+      if(rx.notes)h+='<div class="t-xs warn" style="margin-top:8px;line-height:1.6">⚑ '+esc(rx.notes)+'</div>';
+      if(rx.suggestions&&rx.suggestions.length)h+='<div class="ai-block"><div class="ai-block-t">✅ 简要建议</div>'+
+        rx.suggestions.map(function(x){return '<div class="li">· '+esc(x)+'</div>';}).join('')+'</div>';
+      if(rx.plan){var rpl=Array.isArray(rx.plan)?rx.plan:[rx.plan];
+        h+='<div class="ai-block plan"><div class="ai-block-t">🧭 未来规划</div>'+
+          rpl.map(function(x){return '<div class="plan-txt">· '+esc(x)+'</div>';}).join('')+'</div>';}
+      h+='<button class="finish" style="margin-top:12px;min-height:48px;font-size:13.5px" data-act="ai-adopt">'+icon('zap')+'🚀 采纳并一键载入今日训练</button>';
+      h+='<div class="t-xs muted" style="text-align:center;margin-top:7px">动作、组数、目标重量将直接写入今日面板</div>';
+    }
+    h+='</div>';
+
+    /* 上下文透明化 */
+    h+='<div class="sec-title"><h2>'+icon('shield')+'③ 发送上下文预览</h2><span class="hint">仅发送以下本地数据</span></div>';
+    h+='<div class="card tight"><pre class="json">'+esc(JSON.stringify(c,null,2))+'</pre>'+
+      '<div class="t-xs muted" style="margin-top:9px;line-height:1.6">API Key 用 WebCrypto AES-GCM 加密后仅存本机，绝不明文落盘、不经过任何第三方服务器；请求只发往你在设置里填写的 Base URL。</div></div>';
+    return h;
+  },
+  /* v1.1 分析范围：近 7/14/30 天 · 单次训练 · 指定时间段 */
+  reviewScopeCard:function(){
+    var sc=Runtime.reviewScope||'14',ss=Store.data.sessions.slice().sort(function(a,b){return a.date<b.date?1:-1;});
+    var h='<div class="card scope-card"><div class="row between"><div class="t-sm bold">🎯 分析范围</div>'+
+      '<span class="pill blue">'+esc(Engine.scopeLabel())+'</span></div>';
+    h+='<div class="row wrap" style="gap:6px;margin-top:10px">'+
+      [['7','近 7 天'],['14','近 14 天'],['30','近 30 天'],['single','单次训练'],['range','指定时间段']].map(function(o){
+        return '<button class="chip sm '+(sc===o[0]?'on':'')+'" data-act="review-scope" data-v="'+o[0]+'">'+o[1]+'</button>';
+      }).join('')+'</div>';
+    if(sc==='single'){
+      if(!ss.length)h+='<div class="t-xs muted" style="margin-top:10px">暂无历史训练记录，先完成一次训练或切换回天数范围。</div>';
+      else{
+        var cur=Runtime.reviewSessionId||ss[0].id;
+        h+='<label class="lbl" style="margin-top:12px">选择要分析的那一次训练</label><select class="field" data-chg="review-session">'+
+          ss.map(function(x){return '<option value="'+esc(x.id)+'" '+(x.id===cur?'selected':'')+'>'+x.date+' · '+
+            esc((NODE_CATALOG[x.node]||{n:x.node}).n)+' · '+x.exercises.length+' 动作 · '+fmt(Engine.volumeOf(x).volume/1000)+' t</option>';}).join('')+'</select>';
+      }
+    }else if(sc==='range'){
+      h+='<div class="row" style="gap:8px;margin-top:11px"><div class="grow"><label class="lbl">起始日期</label>'+
+        '<input class="field" type="date" data-chg="review-from" value="'+esc(Runtime.reviewFrom||dadd(dstr(),-13))+'"></div>'+
+        '<div class="grow"><label class="lbl">结束日期</label>'+
+        '<input class="field" type="date" data-chg="review-to" value="'+esc(Runtime.reviewTo||dstr())+'"></div></div>';
+    }
+    h+='<div class="scope-note">复盘、四宫格统计与「发送上下文预览」只使用该范围内的训练数据；无 API Key 的本地智能引擎同样遵循此范围。'+
+      '单次训练适合复盘某一次的质量与容量，指定时间段适合看阶段趋势。</div></div>';
+    return h;
+  },
+  md:function(t){var s=esc(t||'');return s.replace(/【([^】]+)】/g,'<b class="hl">【$1】</b>').replace(/\n/g,'<br>');},
+
+  /* ---------------- 历史与肌群 ---------------- */
+  analytics:function(){
+    var s=Store.data,ss=s.sessions.slice().sort(function(a,b){return a.date<b.date?-1:1;}),
+        week=dadd(dstr(),-6),thisWeek=ss.filter(function(x){return x.date>=week;});
+    var vol=thisWeek.reduce(function(t,x){return t+Engine.volumeOf(x).volume;},0),
+        sets=thisWeek.reduce(function(t,x){return t+Engine.volumeOf(x).sets;},0);
+    var m7=Engine.muscleSets(s.sessions,7),maxM=Math.max.apply(null,MUSCLE_ORDER.map(function(m){return m7[m]||0;}).concat([1]));
+    var h='<div class="stat-grid" style="margin-bottom:12px">'+
+      '<div class="stat"><div class="k">近 7 天容量</div><div class="v acc mono">'+fmt(vol/1000)+'<small>t</small></div></div>'+
+      '<div class="stat"><div class="k">近 7 天训练</div><div class="v mono">'+thisWeek.length+'<small>次 / '+sets+' 组</small></div></div>'+
+      '<div class="stat"><div class="k">累计训练</div><div class="v mono">'+ss.length+'<small>次</small></div></div>'+
+      '<div class="stat"><div class="k">每 kg 体重容量</div><div class="v mono">'+Math.round(vol/(s.settings.bodyweight||70))+'<small>kg·reps</small></div></div></div>';
+
+    /* 日历热力图 */
+    h+='<div class="sec-title"><h2>'+icon('calendar')+'训练日历 · 近 13 周</h2><span class="hint">颜色 = 当日吨位</span></div>';
+    var byDate={};ss.forEach(function(x){byDate[x.date]=(byDate[x.date]||0)+Engine.volumeOf(x).volume;});
+    var start=dadd(dstr(),-90),d=new Date(start+'T12:00:00');while(d.getDay()!==0)d.setDate(d.getDate()-1);
+    var cells='',today=dstr();
+    for(var i=0;i<91;i++){
+      var ds=dstr(d),v=byDate[ds]||0,lv=v===0?0:v<3000?1:v<8000?2:v<15000?3:4;
+      var future=ds>today;
+      cells+='<i class="'+(lv?'l'+lv:'')+'" title="'+ds+' · '+fmt(v/1000)+' t" style="'+(future?'opacity:.25':'')+(ds===today?';outline:1.5px solid var(--acc);outline-offset:1px':'')+'"></i>';
+      d.setDate(d.getDate()+1);
+    }
+    h+='<div class="card"><div class="cal">'+cells+'</div><div class="row between" style="margin-top:11px">'+
+      '<span class="t-xs muted">'+start+' ~ '+today+'</span><span class="legend">少 <i style="background:var(--card3)"></i><i class="l1" style="background:rgba(16,185,129,.28)"></i><i class="l2" style="background:rgba(16,185,129,.5)"></i><i class="l3" style="background:rgba(16,185,129,.75)"></i><i class="l4" style="background:#10B981"></i> 多</span></div></div>';
+
+    /* 肌肉热力图 */
+    h+='<div class="sec-title"><h2>'+icon('flame')+'肌肉热力图 · 近 7 天有效组</h2><span class="hint">正面 / 背面</span></div>';
+    h+='<div class="card"><div class="bodywrap">'+this.bodySvg(m7,maxM,true)+this.bodySvg(m7,maxM,false)+'</div>'+
+      '<div class="row between" style="margin-top:10px"><span class="legend">低 <i style="background:rgba(16,185,129,.18)"></i><i style="background:rgba(16,185,129,.5)"></i><i style="background:#10B981"></i> 高刺激</span>'+
+      '<span class="t-xs muted">峰值 '+maxM+' 组</span></div>'+
+      '<div class="row wrap" style="gap:5px;margin-top:11px">'+MUSCLE_ORDER.filter(function(m){return m7[m]>0;}).map(function(m){
+        return '<span class="pill green">'+esc(MUSCLES[m].n)+' '+m7[m]+'</span>';
+      }).join('')+'</div><div class="body-hint">线条勾勒解剖学肌群轮廓 · 绿色越亮代表近 7 天有效组数越多 · 悬停/长按可查看具体组数</div></div>';
+
+    /* 容量趋势 */
+    h+='<div class="sec-title"><h2>'+icon('chart')+'容量趋势</h2><span class="hint">最近 8 次训练 · 吨</span></div>';
+    h+='<div class="card">'+this.trend(ss.slice(-8))+'</div>';
+
+    /* 恢复状态 */
+    h+='<div class="sec-title"><h2>'+icon('heart')+'肌群恢复状态</h2><span class="hint">按上次刺激量与间隔估算</span></div>';
+    h+='<div class="card">';
+    var lastBy={};ss.slice().reverse().forEach(function(x){x.exercises.forEach(function(e){
+      var n=e.sets.filter(function(z){return z.done;}).length;if(n)lastBy[e.muscle]={date:x.date,sets:n};});});
+    MUSCLE_ORDER.forEach(function(m){
+      var l=lastBy[m],pct=100,label='充分恢复';
+      if(l){var gap=daysBetween(l.date,dstr()),need=1.6+l.sets*0.16;pct=clamp(Math.round(gap/need*100),0,100);
+        label=pct>=100?'已恢复':pct>=60?'恢复中':'仍在疲劳';}
+      var col=pct>=100?'var(--acc)':pct>=60?'var(--blue)':pct>=30?'var(--warn)':'var(--danger)';
+      h+='<div class="rec"><span class="rn">'+esc(MUSCLES[m].n)+'</span><span class="rb"><span class="bar"><i style="width:'+pct+'%;background:'+col+'"></i></span></span>'+
+        '<span class="rv" style="color:'+col+'">'+pct+'%</span><span class="t-xs muted" style="width:58px;text-align:right">'+(l?label:'未训练')+'</span></div>';
+    });
+    h+='<div class="t-xs muted" style="margin-top:9px">※ 估算模型：所需恢复天数 ≈ 1.6 + 有效组数 × 0.16，仅供编排参考。</div></div>';
+
+    /* 记录列表 */
+    h+='<div class="sec-title"><h2>'+icon('clock')+'训练记录</h2><span class="hint">'+ss.length+' 条</span></div>';
+    if(!ss.length)h+=this.empty('暂无训练记录','calendar');
+    ss.slice().reverse().slice(0,12).forEach(function(x){
+      var v=Engine.volumeOf(x),nd=NODE_CATALOG[x.node]||{n:x.node},key=x.id||(x.date+'|'+x.node);
+      h+='<div class="card tight"><div class="row between"><div class="grow"><div class="t-sm bold">'+esc(nd.n)+' <span class="t-xs muted">· '+x.date+'</span></div>'+
+        '<div class="t-xs muted" style="margin-top:3px">'+x.exercises.length+' 动作 · '+v.sets+' 组 · '+x.durationMin+' min'+(x.feeling?' · '+FEELINGS.filter(function(f){return f.id===x.feeling;}).map(function(f){return f.n;})[0]:'')+'</div></div>'+
+        '<div class="row" style="gap:7px;flex:none"><div style="text-align:right"><div class="t-lg bold acc mono">'+fmt(v.volume/1000)+'<span class="t-xs muted"> t</span></div></div>'+
+        '<button class="del-ses tpl-save" data-act="tpl-save-session" data-id="'+esc(key)+'" title="把这一次的安排保存为模板">'+icon('save')+'</button>'+
+        '<button class="del-ses" data-act="del-session" data-id="'+esc(key)+'" title="删除这一天的训练">'+icon('trash')+'</button></div></div>'+
+        (x.fromTemplate?'<div class="t-xs dim" style="margin-top:7px">📋 由模板「'+esc(x.templateName||'')+'」导入</div>':'')+
+        '<div class="row wrap" style="gap:5px;margin-top:9px">'+Array.from(new Set(x.exercises.map(function(e){return e.muscle;}))).map(function(m){
+          return '<span class="pill">'+esc((MUSCLES[m]||{}).n||m)+'</span>';}).join('')+'</div></div>';
+    });
+    return h;
+  },
+  /* v1.1 线条勾勒解剖学肌肉形态（正面 / 背面），每块独立着色 + 描边 + 肌纤维线 */
+  bodySvg:function(sets,max,front){
+    /* 人体轮廓装饰线（细线勾勒，不参与热度着色） */
+    var DECO=[
+      'M75 9 C84 9 89 16 89 24 C89 33 83 39 75 39 C67 39 61 33 61 24 C61 16 66 9 75 9 Z',
+      'M68 38 L68 45 M82 38 L82 45',
+      'M68 45 C58 46 48 49 42 55 L38 64 L41 100 L45 135 C52 142 62 145 75 145 C88 145 98 142 105 135 L109 100 L112 64 L108 55 C102 49 92 46 82 45',
+      'M42 55 C34 58 30 66 29 78 L27 110 L25 146 M38 64 L34 112 L33 146',
+      'M108 55 C116 58 120 66 121 78 L123 110 L125 146 M112 64 L116 112 L117 146',
+      'M45 140 L47 205 L50 278 M73 145 L72 205 L69 278',
+      'M105 140 L103 205 L100 278 M77 145 L78 205 L81 278',
+      'M50 278 L48 288 L66 288 L68 278 M100 278 L102 288 L84 288 L82 278',
+      'M52 58 Q75 50 98 58',
+      'M46 138 Q75 132 104 138'
+    ];
+    /* [肌群, 肌肉块路径, 肌纤维/分隔线] —— 左半与右半分别勾勒，形成解剖对称 */
+    var F=[
+      ['shoulders','M68 45 Q58 47 48 52 L54 59 Q62 54 68 52 Z','M52 54 L63 52'],
+      ['shoulders','M82 45 Q92 47 102 52 L96 59 Q88 54 82 52 Z','M98 54 L87 52'],
+      ['shoulders','M48 52 Q39 54 36 63 Q33 72 36 79 L45 76 Q48 64 53 58 Z','M40 62 Q42 69 41 75'],
+      ['shoulders','M102 52 Q111 54 114 63 Q117 72 114 79 L105 76 Q102 64 97 58 Z','M110 62 Q108 69 109 75'],
+      ['chest','M54 60 Q63 57 73 60 L73 86 Q64 90 55 85 Q50 76 50 68 Z','M56 66 Q63 64 70 66'],
+      ['chest','M96 60 Q87 57 77 60 L77 86 Q86 90 95 85 Q100 76 100 68 Z','M94 66 Q87 64 80 66'],
+      ['biceps','M33 78 Q30 90 31 103 L37 111 Q40 98 39 84 Z','M34 86 Q34 96 35 104'],
+      ['biceps','M117 78 Q120 90 119 103 L113 111 Q110 98 111 84 Z','M116 86 Q116 96 115 104'],
+      ['core','M58 90 L73 90 L73 103 L58 103 Z',''],
+      ['core','M77 90 L92 90 L92 103 L77 103 Z',''],
+      ['core','M58 105 L73 105 L73 117 L58 117 Z',''],
+      ['core','M77 105 L92 105 L92 117 L77 117 Z',''],
+      ['core','M59 119 L73 119 L73 132 Q66 136 59 132 Z',''],
+      ['core','M77 119 L91 119 L91 132 Q84 136 77 132 Z',''],
+      ['core','M50 88 Q53 100 54 116 L58 128 L58 106 Q54 98 53 89 Z','M52 96 L55 116'],
+      ['core','M100 88 Q97 100 96 116 L92 128 L92 106 Q96 98 97 89 Z','M98 96 L95 116'],
+      ['quads','M46 147 Q56 143 66 147 L64 202 Q57 210 50 202 Z','M56 150 Q52 176 57 199'],
+      ['quads','M104 147 Q94 143 84 147 L86 202 Q93 210 100 202 Z','M94 150 Q98 176 93 199'],
+      ['calves','M50 208 L64 208 L62 266 Q56 272 52 266 Z','M55 212 L55 262'],
+      ['calves','M100 208 L86 208 L88 266 Q94 272 98 266 Z','M95 212 L95 262']
+    ];
+    var B=[
+      ['back','M68 45 Q58 46 50 52 L56 74 L73 82 L73 52 Z','M60 52 L70 76'],
+      ['back','M82 45 Q92 46 100 52 L94 74 L77 82 L77 52 Z','M90 52 L80 76'],
+      ['back','M52 60 Q62 60 73 70 L73 108 Q62 106 55 96 Q48 80 52 60 Z','M56 70 Q55 88 62 100'],
+      ['back','M98 60 Q88 60 77 70 L77 108 Q88 106 95 96 Q102 80 98 60 Z','M94 70 Q95 88 88 100'],
+      ['back','M70 88 L73 88 L73 130 L70 130 Z',''],
+      ['back','M77 88 L80 88 L80 130 L77 130 Z',''],
+      ['rearDelts','M48 52 Q39 54 36 63 Q33 72 36 79 L45 76 Q48 64 53 58 Z','M40 62 Q42 69 41 75'],
+      ['rearDelts','M102 52 Q111 54 114 63 Q117 72 114 79 L105 76 Q102 64 97 58 Z','M110 62 Q108 69 109 75'],
+      ['triceps','M33 78 Q30 90 31 105 L37 113 Q40 98 39 84 Z','M34 86 Q34 98 35 106'],
+      ['triceps','M117 78 Q120 90 119 105 L113 113 Q110 98 111 84 Z','M116 86 Q116 98 115 106'],
+      ['glutes','M47 112 Q60 108 73 114 L73 140 Q60 144 48 138 Z','M52 120 Q60 118 70 122'],
+      ['glutes','M103 112 Q90 108 77 114 L77 140 Q90 144 102 138 Z','M98 120 Q90 118 80 122'],
+      ['hamstrings','M46 147 Q56 143 66 147 L64 202 Q57 210 50 202 Z','M56 150 Q52 176 57 199'],
+      ['hamstrings','M104 147 Q94 143 84 147 L86 202 Q93 210 100 202 Z','M94 150 Q98 176 93 199'],
+      ['calves','M50 208 L64 208 L62 266 Q56 272 52 266 Z','M57 212 L57 250'],
+      ['calves','M100 208 L86 208 L88 266 Q94 272 98 266 Z','M93 212 L93 250']
+    ];
+    var s='<svg viewBox="0 0 150 300" xmlns="http://www.w3.org/2000/svg">';
+    s+='<g fill="none" stroke="#2B3742" stroke-width="1.15" stroke-linejoin="round" stroke-linecap="round">';
+    DECO.forEach(function(d){s+='<path d="'+d+'"/>';});
+    s+='</g><line x1="75" y1="46" x2="75" y2="140" stroke="#2B3742" stroke-width="1" stroke-dasharray="3 4"/>';
+    (front?F:B).forEach(function(it){
+      var m=it[0],d=it[1],fib=it[2],k=sets[m]||0;
+      var a=k?clamp(0.20+0.75*(k/max),0.2,0.95):0;
+      var fill=k?'rgba(16,185,129,'+a.toFixed(2)+')':'#1A2128';
+      var stroke=k?'rgba(52,211,153,'+Math.min(1,a+0.18).toFixed(2)+')':'#3A4652';
+      var fiber=k?'rgba(255,255,255,'+(0.14+a*0.2).toFixed(2)+')':'rgba(255,255,255,.07)';
+      s+='<path d="'+d+'" fill="'+fill+'" stroke="'+stroke+'" stroke-width="1.1" stroke-linejoin="round">'+
+        '<title>'+esc((MUSCLES[m]||{}).n||m)+'：'+k+' 组</title></path>';
+      if(fib)s+='<path d="'+fib+'" fill="none" stroke="'+fiber+'" stroke-width="0.9" stroke-linecap="round"/>';
+    });
+    s+='<text x="75" y="297" text-anchor="middle" fill="#5F6875" font-size="9" letter-spacing="1">'+
+      (front?'正面 FRONT':'背面 BACK')+'</text></svg>';
+    return s;
+  },
+  trend:function(ss){
+    if(!ss.length)return this.empty('暂无数据','chart');
+    var vals=ss.map(function(x){return Engine.volumeOf(x).volume/1000;}),max=Math.max.apply(null,vals.concat([1]))*1.15,
+        W=340,H=130,pl=8,pb=24,n=vals.length,bw=(W-pl*2)/n;
+    var bars='',grid='';
+    for(var g=0;g<=2;g++){var y=10+(H-pb-10)*(g/2);grid+='<line x1="0" y1="'+y+'" x2="'+W+'" y2="'+y+'" stroke="#2A3038" stroke-dasharray="3 4"/>';}
+    vals.forEach(function(v,i){
+      var bh=(H-pb-14)*(v/max),x=pl+i*bw+bw*0.22,y=H-pb-bh,w=bw*0.56;
+      bars+='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+Math.max(2,bh)+'" rx="4" fill="url(#bg1)"/>';
+      bars+='<text x="'+(x+w/2)+'" y="'+(y-4)+'" text-anchor="middle" fill="#929BA8" font-size="9">'+fmt(v)+'</text>';
+      bars+='<text x="'+(x+w/2)+'" y="'+(H-7)+'" text-anchor="middle" fill="#5F6875" font-size="8">'+ss[i].date.slice(5)+'</text>';
+    });
+    return '<svg class="trend" viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none"><defs><linearGradient id="bg1" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="#10B981"/><stop offset="100%" stop-color="rgba(16,185,129,.25)"/></linearGradient></defs>'+grid+bars+'</svg>';
+  },
+
+  /* ---------------- 设置 ---------------- */
+  settings:function(){
+    var s=Store.data,st=s.settings,h='';
+    /* 器械库 */
+    h+='<div class="sec-title"><h2>'+icon('sliders')+'我的器械库</h2><span class="hint">联动动作池</span></div>';
+    h+='<div class="card"><div class="seg" style="margin-bottom:12px">'+
+      ['home','gym','custom'].map(function(p){return '<button class="'+(st.profile===p?'on acc':'')+'" data-act="profile" data-id="'+p+'">'+
+        ({home:'🏠 居家器械',gym:'🏢 商业健身房',custom:'✍ 自定义'})[p]+'</button>';}).join('')+'</div>';
+    ['力量','有氧'].forEach(function(g){
+      h+='<div class="t-xs muted bold" style="margin:'+(g==='有氧'?'14px':'0')+' 2px 8px">'+g+'器械</div><div class="eq-grid">';
+      EQUIPMENT.filter(function(e){return e.g===g;}).forEach(function(e){
+        var on=!!st.equipment[e.id];
+        h+='<button class="eq '+(on?'on':'')+'" data-act="toggle-eq" data-id="'+e.id+'"><span class="eico">'+icon(e.i)+'</span>'+
+          '<span class="grow"><span class="en">'+esc(e.n)+'</span><span class="es">'+esc(e.s)+'</span></span><span class="sw"></span></button>';
+      });
+      h+='</div>';
+    });
+    h+='<div class="t-xs muted" style="margin-top:11px;line-height:1.6">勾选后，今日训练与 AI 处方只会出现这些器械能做的动作。哈克机 / 划船机 / 大坡度跑步机含专属必练模板。</div></div>';
+
+    /* 分化 */
+    h+='<div class="sec-title"><h2>'+icon('rotate')+'训练分化与轮换</h2><span class="hint">游标制</span></div>';
+    h+='<div class="card"><div class="row wrap" style="gap:7px">'+Object.keys(SPLITS).map(function(k){
+      return '<button class="chip '+(st.split===k?'on':'')+'" data-act="split" data-id="'+k+'">'+SPLITS[k].n+'</button>';
+    }).join('')+'</div>';
+    h+='<div class="t-xs dim" style="margin-top:10px;line-height:1.6">'+esc(SPLITS[st.split].d)+' · 不绑定星期，完成一次训练游标自动前移一位。</div>';
+    if(st.split==='custom'){
+      h+='<div class="divider"></div><div class="t-xs muted bold" style="margin-bottom:8px">当前轮换序列（点 × 删除）</div>'+
+        '<div class="row wrap" style="gap:6px">'+Engine.nodes().map(function(n,i){
+          return '<span class="chip sm on">'+esc(n.n)+'<button data-act="cycle-del" data-i="'+i+'" style="color:var(--danger);margin-left:2px">'+icon('x')+'</button></span>';
+        }).join('')+'</div><div class="t-xs muted" style="margin:9px 0 6px">追加节点：</div><div class="row wrap" style="gap:6px">'+
+        Object.keys(NODE_CATALOG).map(function(k){return '<button class="chip sm" data-act="cycle-add" data-id="'+k+'">+ '+NODE_CATALOG[k].n+'</button>';}).join('')+'</div>';
+    }
+    h+='</div>';
+
+    /* 休息计时 */
+    h+='<div class="sec-title"><h2>'+icon('timer')+'自动组间休息</h2></div>';
+    h+='<div class="card"><div class="row between"><div><div class="t-sm bold">勾选一组后自动倒计时</div>'+
+      '<div class="t-xs muted" style="margin-top:3px">到时震动 + 提示音，可 +30s / -15s / 跳过</div></div>'+
+      '<button class="chip sm '+(st.restOn?'on':'')+'" data-act="rest-toggle">'+(st.restOn?'已开启':'已关闭')+'</button></div>'+
+      '<div class="row wrap" style="gap:7px;margin-top:11px">'+[45,60,90,120,180].map(function(v){
+        return '<button class="chip sm '+(st.rest===v?'on':'')+'" data-act="set-rest" data-v="'+v+'">'+v+'s</button>';
+      }).join('')+'</div>'+
+      '<div class="divider"></div><div class="row between"><div><div class="t-sm bold">到点系统通知</div>'+
+      '<div class="t-xs muted" style="margin-top:3px">'+(Notify.supported?'切到后台也能收到提醒，首次开启需授权':'当前浏览器不支持，仍会震动 + 提示音')+'</div></div>'+
+      '<button class="chip sm '+(st.notify&&Notify.state()==='granted'?'on':'')+'" data-act="notify-toggle"'+(Notify.supported?'':' disabled')+'>'+
+      (st.notify&&Notify.state()==='granted'?'已开启':(Notify.state()==='denied'?'已被拒绝':'开启'))+'</button></div></div>';
+
+    /* AI 配置 */
+    h+='<div class="sec-title"><h2>'+icon('key')+'AI 接口 · DeepSeek</h2><span class="hint">OpenAI 格式兼容</span></div>';
+    h+='<div class="card"><label class="lbl">BASE URL</label><input class="field" data-chg="ai-base" value="'+esc(st.ai.baseUrl)+'" placeholder="https://api.deepseek.com" spellcheck="false">'+
+      '<div class="t-xs muted" style="margin:6px 2px 12px">可改为任意 OpenAI 兼容中转 / 本地接口（Ollama、LM Studio…）</div>'+
+      '<label class="lbl">MODEL</label><select class="field" data-chg="ai-model">'+
+        ['deepseek-chat','deepseek-reasoner'].map(function(m){return '<option value="'+m+'" '+(st.ai.model===m?'selected':'')+'>'+m+'（'+(m==='deepseek-chat'?'V3 极速响应':'R1 深度推理')+'）</option>';}).join('')+
+      '</select>'+
+      '<label class="lbl" style="margin-top:12px">API KEY · 本地 AES-GCM 加密存储</label>'+
+      '<input class="field" type="password" data-chg="ai-key" value="'+esc(Runtime.keyPlain)+'" placeholder="sk-... （留空即用本地智能引擎）" spellcheck="false" autocomplete="off">'+
+      '<div class="row" style="gap:8px;margin-top:11px"><button class="btn sm" data-act="ai-test">'+icon('server')+'测试连接</button>'+
+      '<button class="btn sm '+(st.ai.demo?'':'primary')+'" data-act="ai-demo">'+(st.ai.demo?'✓ 演示模式（本地引擎）':'切换为演示模式')+'</button></div>'+
+      '<div class="t-xs muted" style="margin-top:10px;line-height:1.7">密钥经 WebCrypto 生成不可导出密钥加密，密文存于 localStorage；明文仅存在于当前页面内存，不会写入日志、不会上传除你所填 Base URL 之外的任何地址。</div>'+
+      (Native.on
+        ?'<div class="t-xs" style="margin-top:8px;line-height:1.7;color:var(--accent)">✅ Android 原生直连：请求由 App 本地发出，不受浏览器 CORS 限制，DeepSeek 官方地址、任意中转、局域网 http:// 的 Ollama / LM Studio 均可直接使用。</div>'
+        :'<div class="t-xs warn" style="margin-top:8px;line-height:1.7">⚠ 浏览器直连第三方 API 可能被 CORS 拦截。若提示「网络/CORS 拦截」，请填支持 CORS 的中转地址，或本地 Ollama / LM Studio 接口；留空则始终使用内置本地智能引擎（无需联网）。</div>')+'</div>';
+
+    /* 身体数据 */
+    h+='<div class="sec-title"><h2>'+icon('heart')+'身体数据</h2></div>';
+    h+='<div class="card"><div class="row between"><div class="t-sm bold">体重</div><div class="step" style="width:150px">'+
+      '<button data-act="bw" data-d="-1">'+icon('minus')+'</button><span class="val">'+st.bodyweight+' kg</span>'+
+      '<button data-act="bw" data-d="1">'+icon('plus')+'</button></div></div></div>';
+
+    /* 数据迁移 */
+    h+='<div class="sec-title"><h2>'+icon('db')+'数据主权 · 导入导出</h2><span class="hint">纯本地 · 断网可用</span></div>';
+    h+='<div class="card"><div class="row" style="gap:8px"><button class="btn block" data-act="export-json">'+icon('download')+'导出 JSON</button>'+
+      '<button class="btn block" data-act="export-csv">'+icon('download')+'导出 CSV</button></div>'+
+      '<div class="row" style="gap:8px;margin-top:8px"><button class="btn block blue" data-act="import-json">'+icon('upload')+'从备份恢复 / 合并</button></div>'+
+      '<div class="t-xs muted" style="margin-top:10px;line-height:1.7">JSON 为全量备份（训练日志 / 自定义动作 / 器械与 AI 配置）；导入时按日期去重合并，兼容 IronLog、OpenGym、Strong、Hevy 的基础字段映射。CSV 可直接进 Excel 做透视。'+
+      (Native.on?'<br><span style="color:var(--accent)">Android 原生版：导出文件写入系统「下载 / Download」目录，导入使用系统文件选择器。</span>':'')+'</div>'+
+      '<div class="divider"></div><div class="row" style="gap:8px"><button class="btn sm" data-act="reset-demo">'+icon('refresh')+'恢复示例数据</button>'+
+      '<button class="btn sm danger" data-act="clear-all">'+icon('trash')+'清空全部数据</button></div></div>';
+    h+='<div class="t-xs muted" style="text-align:center;padding:8px 10px 20px;line-height:1.8">IronLog v1.2 · Local-First<br>'+
+      ssCount()+' 条训练记录 · '+(s.customExercises||[]).length+' 个自定义动作 · '+((s.templates||[]).length)+' 个训练模板 · '+(Store.memOnly?'内存模式（localStorage 不可用）':'localStorage 持久化')+'<br>'+
+      (Native.on?'<span style="color:var(--accent)">Android 原生版 '+(function(){var i=Native.info();return i&&i.version?i.version:'';})()+' · 原生 HTTP 无 CORS 直连 · 原生震动 · 离线全功能</span>'
+        :'全平台统一版本 · 双击即用、断网可用、数据只存本机 · 静态服务器打开可「添加到主屏幕」全屏运行')+'</div>';
+    return h;
+  },
+  /* ---------------- 弹层 ---------------- */
+  openSheet:function(title,body){
+    var o=document.getElementById('overlay'),sh=document.getElementById('sheet');
+    o.classList.remove('hidden');sh.classList.remove('hidden');
+    sh.innerHTML='<div class="sheet-grab"></div><div class="sheet-h"><h3>'+esc(title)+'</h3>'+
+      '<button class="iconbtn" data-act="sheet-close">'+icon('x')+'</button></div><div class="sheet-b">'+body+'</div>';
+  },
+  closeSheet:function(){document.getElementById('overlay').classList.add('hidden');document.getElementById('sheet').classList.add('hidden');},
+  addExSheet:function(){
+    var node=Engine.node(Store.data.today.nodeId),p=Engine.pool(node),f=Runtime.sheetFilter,
+        scope=Runtime.sheetScope||'fit',q=(Runtime.sheetQuery||'').trim().toLowerCase(),eq=Engine.enabledEq();
+    var fitList=p.strength.concat(p.cardio);
+    var all=scope==='all'?Engine.fullPool():fitList;
+    var list=f==='all'?all.slice():all.filter(function(e){return e.muscle===f||(f==='cardio'&&e.mode==='cardio');});
+    if(q)list=list.filter(function(e){return (e.name+' '+((MUSCLES[e.muscle]||{}).n||'')+' '+((EQ_MAP[e.eq]||{}).n||'')).toLowerCase().indexOf(q)>=0;});
+    var muscles=Array.from(new Set(all.map(function(e){return e.muscle;})));
+    var b='<div class="sheet-scope">'+
+      '<button class="'+(scope==='fit'?'on':'')+'" data-act="pick-scope" data-v="fit">🎯 推荐动作池<br><span style="opacity:.7">当前器械 · '+fitList.length+' 个</span></button>'+
+      '<button class="'+(scope==='all'?'on':'')+'" data-act="pick-scope" data-v="all">🌐 全部动作库<br><span style="opacity:.7">不限器械 · '+Engine.fullPool().length+' 个</span></button></div>';
+    b+='<input class="sheet-search" id="exSearch" placeholder="🔍 搜索动作名 / 肌群 / 器械" value="'+esc(Runtime.sheetQuery||'')+'" autocomplete="off">';
+    b+='<div class="row wrap" style="gap:6px;margin-bottom:10px"><button class="chip sm '+(f==='all'?'on':'')+'" data-act="pick-filter" data-v="all">全部 '+all.length+'</button>'+
+      muscles.map(function(m){return '<button class="chip sm '+(f===m?'on':'')+'" data-act="pick-filter" data-v="'+m+'">'+esc((MUSCLES[m]||{}).n||m)+'</button>';}).join('')+'</div>';
+    if(scope==='all')b+='<div class="t-xs warn" style="margin-bottom:9px;line-height:1.6">⚠ 已显示全部动作：标注「需…」的动作所需器械当前未在器械库勾选，仍可添加（手动选择的动作不受过滤限制）。</div>';
+    if(!list.length)b+=this.empty('没有匹配的动作，试试清空搜索或切换范围','filter');
+    list.forEach(function(e){
+      var last=Engine.lastFor(e.name),needEq=scope==='all'&&eq.indexOf(e.eq)<0;
+      b+='<div class="list-item" data-search="'+esc((e.name+' '+((MUSCLES[e.muscle]||{}).n||'')+' '+((EQ_MAP[e.eq]||{}).n||'')).toLowerCase())+'">'+
+        '<span class="eico" style="width:32px;height:32px;border-radius:9px;background:var(--card3);display:grid;place-items:center;color:var(--dim)">'+icon(e.mode==='cardio'?'activity':'dumbbell')+'</span>'+
+        '<div class="grow"><div class="t-sm bold">'+esc(e.name)+(e.pinned?' <span class="pill green">必练</span>':'')+(e.custom?' <span class="pill blue">自定义</span>':'')+'</div>'+
+        '<div class="t-xs muted">'+esc((MUSCLES[e.muscle]||{}).n||e.muscle)+' · '+esc((EQ_MAP[e.eq]||{}).n||e.eq)+
+        (last?' · 上次 '+fmt(last.ex.sets[0].a)+'×'+fmt(last.ex.sets[0].b):' · 首次')+
+        (needEq?'<span class="eqflag"> · 需「'+esc((EQ_MAP[e.eq]||{}).n||e.eq)+'」未勾选</span>':'')+'</div>'+
+        (e.note?'<div class="t-xs acc">'+esc(e.note)+'</div>':'')+'</div>'+
+        '<button class="btn sm primary" data-act="addex-pick" data-name="'+esc(e.name)+'">'+icon('plus')+'</button></div>';
+    });
+    b+='<div id="sheetEmpty" class="empty hidden">没有匹配的动作，换个关键词试试</div>';
+    this.openSheet(scope==='all'?'全部动作库':'动作池 · '+node.n,b);
+  },
+  /* ================= v1.2 训练模板弹层 ================= */
+  templateSheet:function(){
+    var s=Store.data,tpls=(s.templates||[]).slice().reverse();
+    var b='<div class="tpl-top">'+
+      '<button class="btn primary block" data-act="tpl-save-today">'+icon('save')+'把当前训练保存为模板</button>'+
+      '<div class="t-xs muted" style="margin-top:8px;line-height:1.6">模板保存动作、组数与目标重量/次数。可一键套用到今天，或指定日期导入生成同样的训练安排；历史记录里点 💾 也能把某一次直接存成模板。</div></div>';
+    if(!tpls.length)b+=this.empty('还没有模板。点上方保存当前训练，或在训练记录里点 💾 把某一次安排存成模板','copy');
+    tpls.forEach(function(tp){
+      b+='<div class="tpl-card"><div class="row between"><div class="grow"><div class="t-sm bold">'+esc(tp.name)+'</div>'+
+        '<div class="t-xs muted" style="margin-top:3px">'+esc(tp.source||'')+' · '+tp.exercises.length+' 动作 · '+tp.sets+' 组 · '+
+        new Date(tp.createdAt).toLocaleDateString('zh-CN')+'</div></div>'+
+        '<button class="del-ses" data-act="tpl-del" data-id="'+esc(tp.id)+'" title="删除模板">'+icon('trash')+'</button></div>'+
+        '<div class="row wrap" style="gap:5px;margin:9px 0 10px">'+(tp.muscles||[]).map(function(m){
+          return '<span class="pill">'+esc((MUSCLES[m]||{}).n||m)+'</span>';}).join('')+'</div>'+
+        '<div class="tpl-row"></div>'+
+        '<div class="row" style="gap:7px;margin-top:9px"><button class="btn sm primary block" data-act="tpl-apply" data-id="'+esc(tp.id)+'">套用到今天</button>'+
+        '<button class="btn sm block" data-act="tpl-date" data-id="'+esc(tp.id)+'">选日期导入</button></div></div>';
+    });
+    this.openSheet('📋 训练模板 · '+(s.templates||[]).length+' 个',b);
+  },
+  templateSaveSheet:function(){
+    var src=Runtime.tplSource||{},ses=Store.data.today;
+    if(src.sessionId){
+      ses=Store.data.sessions.filter(function(x){return (x.id||(x.date+'|'+x.node))===src.sessionId;})[0]||Store.data.today;
+    }
+    if(!ses)return;
+    var nd=NODE_CATALOG[ses.nodeId||ses.node]||{n:''};
+    var def=(nd.n?nd.n.split(' ')[0]+' · ':'')+(ses.date||dstr());
+    var b='<label class="lbl">模板名称</label><input id="tplName" class="field" value="'+esc(def)+'" placeholder="例：推日 A · 胸肩三头">'+
+      '<div class="t-xs muted" style="margin-top:9px;line-height:1.7">来源：'+esc(src.label||('今日训练 · '+dstr()))+'<br>'+
+      ses.exercises.length+' 个动作 · '+ses.exercises.reduce(function(a,e){return a+e.sets.length;},0)+' 组<br>'+
+      '只保存动作安排（名称 / 肌群 / 器械 / 组数 / 目标重量次数），不保存打卡状态。</div>'+
+      '<button class="btn primary block" style="margin-top:16px" data-act="tpl-save-confirm">'+icon('save')+'保存模板</button>';
+    this.openSheet('保存训练模板',b);
+  },
+  templateDateSheet:function(id){
+    var tp=(Store.data.templates||[]).filter(function(x){return x.id===id;})[0];
+    if(!tp){toast('模板不存在');return;}
+    var b='<div class="t-sm dim" style="line-height:1.7">把「'+esc(tp.name)+'」导入到指定日期，使用完全一样的训练安排。</div>'+
+      '<label class="lbl" style="margin-top:14px">生效日期</label>'+
+      '<input id="tplDate" class="field" type="date" value="'+dstr()+'">'+
+      '<div class="scope-note">· 选今天：套用到今日训练面板，保持未打卡，可逐组点 ✓。<br>'+
+      '· 选其它日期：写入（或覆盖）该日训练记录，历史、热力图与 AI 分析立即可见。</div>'+
+      '<button class="btn primary block" style="margin-top:16px" data-act="tpl-date-confirm" data-id="'+esc(id)+'">确认导入</button>';
+    this.openSheet('选择导入日期',b);
+  },
+  customExSheet:function(){
+    var b='<label class="lbl">动作名称</label><input id="ceName" class="field" placeholder="例：单臂绳索划船">'+
+      '<label class="lbl" style="margin-top:12px">所属肌群</label><select id="ceMuscle" class="field">'+
+      MUSCLE_ORDER.concat(['cardio']).map(function(m){return '<option value="'+m+'">'+MUSCLES[m].n+'</option>';}).join('')+'</select>'+
+      '<label class="lbl" style="margin-top:12px">所需器械</label><select id="ceEq" class="field">'+
+      EQUIPMENT.map(function(e){return '<option value="'+e.id+'">'+e.n+'</option>';}).join('')+'</select>'+
+      '<div class="row" style="gap:8px;margin-top:12px"><div class="grow"><label class="lbl">默认重量/kg</label>'+
+      '<input id="ceA" class="field" type="number" value="20"></div><div class="grow"><label class="lbl">默认次数</label>'+
+      '<input id="ceB" class="field" type="number" value="10"></div></div>'+
+      '<button class="btn primary block" style="margin-top:16px" data-act="custom-ex-save">'+icon('save')+'保存到动作库并加入今日</button>'+
+      '<div class="t-xs muted" style="margin-top:10px">自定义动作会持久保存在本地，之后在所有分化中按肌群 + 器械自动出现在动作池里。</div>';
+    this.openSheet('新增自定义动作',b);
+  },
+  summarySheet:function(ses){
+    var v=Engine.volumeOf(ses),sets=Engine.muscleSets([ses],3650),max=Math.max.apply(null,MUSCLE_ORDER.map(function(m){return sets[m]||0;}).concat([1])),
+        ms=Array.from(new Set(ses.exercises.map(function(e){return e.muscle;})));
+    var b='<div style="text-align:center;padding:6px 0 14px"><div style="font-size:38px">🏁</div>'+
+      '<div class="t-xl acc" style="margin-top:6px">'+fmt(v.volume/1000)+' <span class="t-sm dim">吨总容量</span></div>'+
+      '<div class="t-xs muted">'+ses.date+' · '+esc((NODE_CATALOG[ses.node]||{}).n||'')+' · 训练完成</div></div>'+
+      '<div class="stat-grid four"><div class="stat"><div class="k">总组数</div><div class="v mono">'+v.sets+'</div></div>'+
+      '<div class="stat"><div class="k">动作</div><div class="v mono">'+ses.exercises.length+'</div></div>'+
+      '<div class="stat"><div class="k">时长</div><div class="v mono">'+ses.durationMin+'<small>min</small></div></div>'+
+      '<div class="stat"><div class="k">有氧</div><div class="v mono">'+Math.round(v.cardioMin)+'<small>min</small></div></div></div>'+
+      '<div class="sec-title"><h2>'+icon('flame')+'本次训练肌群</h2></div>'+
+      '<div class="bodywrap">'+this.bodySvg(sets,max,true)+this.bodySvg(sets,max,false)+'</div>'+
+      '<div class="row wrap" style="gap:5px;margin-top:12px">'+ms.map(function(m){return '<span class="pill green">'+esc((MUSCLES[m]||{}).n||m)+' '+(sets[m]||0)+' 组</span>';}).join('')+'</div>'+
+      '<button class="btn block" style="margin-top:16px" data-act="tpl-save-session" data-id="'+esc(ses.id||(ses.date+'|'+ses.node))+'">'+icon('save')+'💾 把这次安排保存为模板</button>'+
+      '<button class="btn primary block" style="margin-top:9px" data-act="sheet-close">完成 · 返回今日训练</button>'+
+      '<div class="t-xs muted" style="text-align:center;margin-top:9px">轮换游标已自动前移到下一节点，去 AI 教练页可生成下一练处方</div>';
+    this.openSheet('今日训练汇总',b);
+  }
+};
+function ssCount(){return Store.data.sessions.length;}
+
+/* ============================== [5] APP ============================== */
+/* 独立 HTML 版增强：组间休息到点的系统通知（Web Notifications API）。
+   浏览器不支持或未授权时静默降级为原有「震动 + 提示音 + 页面胶囊」，不影响任何主流程。 */
+const Notify=(function(){
+  var ok=(typeof Notification!=='undefined');
+  function on(){try{return Store.data.settings.notify===true;}catch(e){return false;}}
+  function state(){return !ok?'unsupported':(Notification.permission==='granted'?'granted':
+    (Notification.permission==='denied'?'denied':'default'));}
+  function enable(){
+    if(!ok)return Promise.resolve('unsupported');
+    if(Notification.permission==='granted')return Promise.resolve('granted');
+    if(Notification.permission==='denied')return Promise.resolve('denied');
+    try{
+      var p=Notification.requestPermission();
+      return (p&&typeof p.then==='function')?p:Promise.resolve(Notification.permission);
+    }catch(e){return Promise.resolve('default');}
+  }
+  function rest(){
+    if(!ok||!on()||Notification.permission!=='granted')return;
+    try{
+      var n=new Notification('IronLog · 休息结束',{body:'开始下一组！',tag:'ironlog-rest'});
+      setTimeout(function(){try{n.close();}catch(e){}},12000);
+    }catch(e){}
+  }
+  return {supported:ok,on:on,state:state,enable:enable,rest:rest};
+})();
+const Timer={
+  left:0,total:0,tick:null,_hide:null,
+  start:function(sec){
+    clearTimeout(this._hide);this._hide=null;
+    this.left=sec||90;this.total=this.left;
+    document.getElementById('rest').classList.remove('due');
+    this.show();
+    var self=this;clearInterval(this.tick);
+    this.tick=setInterval(function(){self.left--;if(self.left<=0){self.finish();}else self.show();},1000);
+  },
+  adjust:function(d){
+    if(!this.tick)return;
+    this.left=Math.max(1,this.left+d);this.total=Math.max(this.total,this.left);this.show();
+  },
+  stop:function(){
+    clearInterval(this.tick);this.tick=null;clearTimeout(this._hide);this._hide=null;
+    var el=document.getElementById('rest');el.classList.add('hidden');el.classList.remove('due');
+  },
+  finish:function(){
+    clearInterval(this.tick);this.tick=null;
+    try{if(navigator.vibrate)navigator.vibrate([180,90,180]);}catch(e){}
+    try{Notify.rest();}catch(e){}
+    try{var C=window.AudioContext||window.webkitAudioContext;if(C){var a=new C(),o=a.createOscillator(),g=a.createGain();
+      o.connect(g);g.connect(a.destination);o.type='sine';o.frequency.value=880;g.gain.setValueAtTime(.16,a.currentTime);
+      o.start();o.stop(a.currentTime+.22);o.onended=function(){a.close();};}}catch(e){}
+    toast('⏱ 休息结束，开始下一组！');
+    var el=document.getElementById('rest');el.classList.remove('hidden');el.classList.add('due');
+    el.innerHTML='<div class="rest-top"><div class="rest-ring emoji"><div class="rt">⏰</div></div>'+
+      '<div class="rest-main"><div class="rest-kicker"><span class="pulse"></span>TIME\'S UP · 休息结束</div>'+
+      '<div class="rest-num txt">开始下一组 💪</div>'+
+      '<div class="rest-sub">已震动 / 提示音提醒，准备继续训练</div></div></div>'+
+      '<div class="rest-btns"><button class="primary" data-act="rest-skip">知道了 ✓</button></div>';
+    var self=this;clearTimeout(this._hide);
+    this._hide=setTimeout(function(){self.stop();},4000);
+  },
+  show:function(){
+    var el=document.getElementById('rest');el.classList.remove('hidden');el.classList.remove('due');
+    var p=this.total?clamp(this.left/this.total*100,0,100):0,
+        R=32,C=2*Math.PI*R,off=C*(1-p/100),
+        mm=Math.floor(this.left/60),ss=pad(this.left%60),txt=mm+':'+ss;
+    if(!el.querySelector('.rest-ring')){
+      el.innerHTML='<svg width="0" height="0" style="position:absolute"><defs>'+
+        '<linearGradient id="restGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#10B981"/>'+
+        '<stop offset="100%" stop-color="#6EE7B7"/></linearGradient></defs></svg>'+
+        '<div class="rest-top"><div class="rest-ring"><svg viewBox="0 0 76 76">'+
+        '<circle class="rc-bg" cx="38" cy="38" r="'+R+'" fill="none" stroke-width="6"/>'+
+        '<circle class="rc-fg" cx="38" cy="38" r="'+R+'" fill="none" stroke-width="6" '+
+        'stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+off.toFixed(1)+'"/>'+
+        '</svg><div class="rt">'+txt+'</div></div>'+
+        '<div class="rest-main"><div class="rest-kicker"><span class="pulse"></span>REST TIMER · 组间休息</div>'+
+        '<div class="rest-num">'+txt+'</div>'+
+        '<div class="rest-sub">到点自动震动 + 提示音，提醒你开始下一组</div></div></div>'+
+        '<div class="rest-btns"><button data-act="rest-adjust" data-d="-15">−15s</button>'+
+        '<button class="primary" data-act="rest-adjust" data-d="30">＋30s</button>'+
+        '<button class="skip" data-act="rest-skip">跳过 ⏭</button></div>';
+    }else{
+      var r=el.querySelector('.rt'),nu=el.querySelector('.rest-num'),fg=el.querySelector('.rc-fg');
+      if(r)r.textContent=txt;if(nu)nu.textContent=txt;
+      if(fg)fg.setAttribute('stroke-dashoffset',off.toFixed(1));
+    }
+  }
+};
+var toastTimer=null;
+function toast(msg){var t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  clearTimeout(toastTimer);toastTimer=setTimeout(function(){t.classList.remove('show');},2200);}
+function exById(id){return Store.data.today.exercises.filter(function(e){return e.id===id;})[0];}
+function confirmSheet(title,text,onYes){
+  UI.openSheet(title,'<div class="t-sm dim" style="line-height:1.8">'+esc(text)+'</div>'+
+    '<div class="row" style="gap:8px;margin-top:18px"><button class="btn block" data-act="sheet-close">取消</button>'+
+    '<button class="btn danger block" id="confirmYes">确认</button></div>');
+  document.getElementById('confirmYes').onclick=function(){UI.closeSheet();onYes();};
+}
+function saveRender(patch){Store.save();UI.render(!!patch);}
+/* 配置变更后重排今日计划：已有打卡记录时绝不覆盖用户数据 */
+function replan(nodeId){
+  var td=Store.data.today;
+  var has=td.exercises&&td.exercises.some(function(e){return e.sets&&e.sets.some(function(x){return x.done;});});
+  if(has){Store.save();UI.render(true);toast('已保留今日进度，新配置下次训练生效');return;}
+  Store.data.today=Engine.plan(nodeId);Runtime.collapsed={};saveRender(true);
+}
+
+const App={
+  /* 浏览器 FileReader 与原生 SAF 选择器共用同一套合并逻辑 */
+  applyImport:function(text){
+    try{
+      var obj=JSON.parse(text),n=Engine.normalizeImport(obj);
+      if(n.full){
+        var merged=Store.data.sessions.slice(),map={};merged.forEach(function(x){map[x.date+'|'+x.node]=1;});
+        n.sessions.forEach(function(x){var k=x.date+'|'+x.node;if(!map[k]){merged.push(x);map[k]=1;}});
+        Store.data.sessions=merged;
+        if(n.full.customExercises)Store.data.customExercises=n.full.customExercises;
+        if(n.full.settings)Store.data.settings=Object.assign(Store.data.settings,n.full.settings);
+        if(Array.isArray(n.full.templates))Store.data.templates=n.full.templates;
+      }else{
+        var mp={};Store.data.sessions.forEach(function(x){mp[x.date+'|'+x.node]=1;});
+        n.sessions.forEach(function(x){var k=x.date+'|'+x.node;if(!mp[k]){Store.data.sessions.push(x);mp[k]=1;}});
+      }
+      Store.data.sessions.sort(function(a,b){return a.date<b.date?-1:1;});
+      Store.save();UI.render(true);toast('✅ 已合并 '+n.sessions.length+' 条记录');
+    }catch(e){toast('导入失败：'+e.message);}
+  },
+  boot:function(){
+    Store.load();
+    var qm=/[?&]tab=(workout|ai|analytics|settings)/.exec(location.search||'');
+    if(qm)Runtime.tab=qm[1];
+    Engine.ensureToday();
+    var st=Store.data.settings;
+    Store.decrypt(st.ai.cipher).then(function(k){Runtime.keyPlain=k||'';UI.render();});
+    UI.render();
+    this.bind();
+    if(!Native.on&&'serviceWorker' in navigator&&location.protocol.indexOf('http')===0){
+      navigator.serviceWorker.register('sw.js').catch(function(){});
+    }
+    setInterval(function(){if(Runtime.tab==='workout'&&document.querySelector('.card.tight .t-xs .mono')){
+      // 轻量刷新用时（不重绘整页）
+      var els=document.querySelectorAll('.card.tight .t-xs .mono');
+      if(els.length>=2)els[1].textContent=Math.max(0,Math.round((Date.now()-Store.data.today.startedAt)/60000))+' min';
+    }},30000);
+  },
+  bind:function(){
+    document.addEventListener('click',function(ev){
+      var t=ev.target.closest('[data-act]');if(!t)return;
+      var a=t.getAttribute('data-act'),d=function(k){return t.getAttribute('data-'+k);};
+      try{App.act(a,d,t,ev);}catch(e){console.error(e);toast('⚠ '+e.message);}
+    });
+    document.addEventListener('change',function(ev){
+      var t=ev.target,f=t.getAttribute('data-chg');if(!f)return;
+      var st=Store.data.settings,v=t.value;
+      if(f==='ai-base'){st.ai.baseUrl=v.trim();Store.save();toast('Base URL 已保存');}
+      else if(f==='ai-model'){st.ai.model=v;Store.save();UI.render(true);toast('模型已切换为 '+v);}
+      else if(f==='ai-key'){
+        Store.encrypt(v.trim()).then(function(c){st.ai.cipher=c;Runtime.keyPlain=v.trim();st.ai.demo=!v.trim();Store.save();UI.render(true);
+          toast(v.trim()?'🔐 API Key 已加密保存到本机':'已清除密钥，使用本地智能引擎');});
+      }
+      else if(f==='review-session'){Runtime.reviewSessionId=v;Store.data.aiCache.review=null;Store.save();UI.render(true);toast('已选定单次训练');}
+      else if(f==='review-from'){Runtime.reviewFrom=v;Store.data.aiCache.review=null;UI.render(true);}
+      else if(f==='review-to'){Runtime.reviewTo=v;Store.data.aiCache.review=null;UI.render(true);}
+    });
+    document.getElementById('overlay').addEventListener('click',function(){UI.closeSheet();});
+    document.getElementById('importFile').addEventListener('change',function(ev){
+      var f=ev.target.files[0];if(!f)return;var r=new FileReader();
+      r.onload=function(){App.applyImport(r.result);ev.target.value='';};r.readAsText(f);
+    });
+    /* v1.1 动作库搜索：实时过滤，不重绘 sheet、不丢焦点 */
+    document.addEventListener('input',function(ev){
+      var t=ev.target;if(!t||t.id!=='exSearch')return;
+      Runtime.sheetQuery=t.value;
+      var q=t.value.trim().toLowerCase(),shown=0;
+      document.querySelectorAll('#sheet .list-item').forEach(function(li){
+        var ok=!q||(li.getAttribute('data-search')||'').indexOf(q)>=0;
+        li.style.display=ok?'':'none';if(ok)shown++;
+      });
+      var tip=document.getElementById('sheetEmpty');if(tip)tip.classList.toggle('hidden',shown>0||!q);
+    });
+    /* 左滑删除单组 */
+    var sx=0,sy=0,row=null;
+    document.addEventListener('touchstart',function(ev){
+      row=ev.target.closest('.setrow');if(!row)return;sx=ev.touches[0].clientX;sy=ev.touches[0].clientY;
+    },{passive:true});
+    document.addEventListener('touchend',function(ev){
+      if(!row)return;var dx=ev.changedTouches[0].clientX-sx,dy=ev.changedTouches[0].clientY-sy;
+      document.querySelectorAll('.setrow.swiped').forEach(function(r){if(r!==row)r.classList.remove('swiped');});
+      if(Math.abs(dx)>55&&Math.abs(dy)<40){row.classList.toggle('swiped',dx<0);}row=null;
+    },{passive:true});
+  },
+  act:function(a,d,t,ev){
+    var s=Store.data,st=s.settings,td=s.today;
+    switch(a){
+      case 'tab':Runtime.tab=d('tab');UI.render();return;
+      case 'sheet-close':UI.closeSheet();return;
+      /* --- 分化轮换 --- */
+      case 'node':{
+        if(d('id')===td.nodeId)return;
+        var has=td.exercises.some(function(e){return e.sets.some(function(x){return x.done;});});
+        var go=function(){st.cursor=Engine.nodes().findIndex(function(n){return n.id===d('id');});
+          s.today=Engine.plan(d('id'));Runtime.collapsed={};saveRender();toast('已切换到 '+Engine.node(d('id')).n);};
+        if(has)confirmSheet('切换分化','今日已有打卡记录，切换会重新生成该分化的动作计划，已完成的组将丢失（历史记录不受影响）。',go);
+        else go();return;
+      }
+      case 'split':{
+        st.split=d('id');st.cursor=0;replan(Engine.currentNode().id);
+        toast('已切换为 '+SPLITS[d('id')].n);return;
+      }
+      case 'cycle-add':st.customCycle.push(d('id'));replan(Engine.currentNode().id);return;
+      case 'cycle-del':if(st.customCycle.length<=1){toast('至少保留 1 个节点');return;}
+        st.customCycle.splice(Number(d('i')),1);st.cursor=0;replan(Engine.currentNode().id);return;
+      /* --- 体感 / 避让 --- */
+      case 'feeling':td.feeling=td.feeling===d('v')?null:d('v');saveRender(true);toast(td.feeling?'体感已记录：'+FEELINGS.filter(function(f){return f.id===td.feeling;})[0].n:'已清除体感');return;
+      case 'avoid':{var v=d('v'),i=s.avoid.indexOf(v);if(i>=0)s.avoid.splice(i,1);else s.avoid.push(v);
+        s.aiCache.prescription=null;saveRender(true);return;}
+      /* --- v1.1 AI 分析范围 --- */
+      case 'review-scope':{
+        var sc=d('v');Runtime.reviewScope=sc;
+        if(sc==='single'&&!Runtime.reviewSessionId){
+          var rs=s.sessions.slice().sort(function(a,b){return a.date<b.date?1:-1;})[0];
+          Runtime.reviewSessionId=rs?(rs.id||''):'';
+        }
+        if(sc==='range'&&!Runtime.reviewFrom){Runtime.reviewFrom=dadd(dstr(),-13);Runtime.reviewTo=dstr();}
+        s.aiCache.review=null;saveRender(true);toast('分析范围：'+Engine.scopeLabel());return;
+      }
+      /* --- v1.1 删除某一天训练 --- */
+      case 'del-session':{
+        var key=d('id'),ses=s.sessions.filter(function(x){return (x.id||(x.date+'|'+x.node))===key;})[0];
+        if(!ses){toast('未找到该训练记录');return;}
+        confirmSheet('删除这一天的训练',
+          '将永久删除 '+ses.date+' 的「'+((NODE_CATALOG[ses.node]||{n:ses.node}).n)+'」训练（'+
+          ses.exercises.length+' 个动作 · '+Engine.volumeOf(ses).sets+' 组）。此操作不可撤销，建议先导出 JSON 备份。',
+          function(){
+            Store.data.sessions=Store.data.sessions.filter(function(x){return (x.id||(x.date+'|'+x.node))!==key;});
+            Store.data.aiCache.review=null;Store.data.aiCache.prescription=null;
+            saveRender(true);toast('🗑 已删除 '+ses.date+' 的训练记录');
+          });return;
+      }
+      /* --- v1.2 训练模板：保存 / 套用 / 指定日期导入 / 删除 --- */
+      case 'tpl-open':UI.templateSheet();return;
+      case 'tpl-save-today':{
+        if(!s.today||!s.today.exercises.length){toast('当前训练没有动作');return;}
+        Runtime.tplSource={label:'今日训练 · '+dstr()};UI.templateSaveSheet();return;
+      }
+      case 'tpl-save-session':{
+        var tplKey=d('id'),tplSes=s.sessions.filter(function(x){return (x.id||(x.date+'|'+x.node))===tplKey;})[0];
+        if(!tplSes){toast('未找到该训练记录');return;}
+        Runtime.tplSource={sessionId:tplKey,label:tplSes.date+' · '+((NODE_CATALOG[tplSes.node]||{n:tplSes.node}).n)};
+        UI.templateSaveSheet();return;
+      }
+      case 'tpl-save-confirm':{
+        var tplName2=(document.getElementById('tplName')||{}).value||'',tplSrc=Runtime.tplSource||{},tplFrom=s.today;
+        if(tplSrc.sessionId)tplFrom=s.sessions.filter(function(x){return (x.id||(x.date+'|'+x.node))===tplSrc.sessionId;})[0]||s.today;
+        if(!tplFrom||!tplFrom.exercises.length){toast('这次训练没有动作');return;}
+        var tplNew=Engine.makeTemplate(tplName2,tplFrom,tplSrc.label||('训练 · '+(tplFrom.date||dstr())));
+        s.templates=s.templates||[];s.templates.push(tplNew);
+        UI.closeSheet();saveRender(true);toast('✅ 已保存模板「'+tplNew.name+'」');return;
+      }
+      case 'tpl-apply':{
+        var tplItem=(s.templates||[]).filter(function(x){return x.id===d('id');})[0];
+        if(!tplItem){toast('模板不存在');return;}
+        var tplGo=function(){var tplN=Engine.applyTemplateToToday(tplItem);
+          Runtime.collapsed={};Runtime.tab='workout';UI.closeSheet();saveRender();
+          toast('📋 已套用「'+tplItem.name+'」· '+tplN+' 个动作');};
+        var tplBusy=s.today&&s.today.exercises.some(function(e){return e.sets.some(function(x){return x.done;});});
+        if(tplBusy)confirmSheet('套用模板','今日已有打卡记录，套用模板会替换当前训练面板的动作安排（历史记录不受影响）。',tplGo);
+        else tplGo();return;
+      }
+      case 'tpl-date':UI.templateDateSheet(d('id'));return;
+      case 'tpl-date-confirm':{
+        var tplDateItem=(s.templates||[]).filter(function(x){return x.id===d('id');})[0];
+        if(!tplDateItem){toast('模板不存在');return;}
+        var tplDateVal=(document.getElementById('tplDate')||{}).value||dstr();
+        var tplRes=Engine.applyTemplateToDate(tplDateItem,tplDateVal);
+        s.aiCache.review=null;s.aiCache.prescription=null;
+        if(tplRes.mode==='today'){Runtime.collapsed={};Runtime.tab='workout';}
+        UI.closeSheet();saveRender();
+        toast(tplRes.mode==='today'?('📋 已套用「'+tplDateItem.name+'」到今日面板'):
+          ('✅ 已把「'+tplDateItem.name+'」写入 '+tplDateVal+(tplRes.replaced?'（覆盖原记录）':' 的训练记录')));return;
+      }
+      case 'tpl-del':{
+        var tplDelId=d('id'),tplDelItem=(s.templates||[]).filter(function(x){return x.id===tplDelId;})[0];
+        if(!tplDelItem)return;
+        confirmSheet('删除模板','将删除模板「'+tplDelItem.name+'」，已导入的训练记录不受影响。',function(){
+          s.templates=s.templates.filter(function(x){return x.id!==tplDelId;});
+          saveRender(true);UI.templateSheet();toast('🗑 已删除模板');});return;
+      }
+      /* --- 打卡 --- */
+      case 'step':{
+        var e=exById(d('ex')),j=Number(d('i')),f=d('f'),dir=Number(d('d')),set=e.sets[j];
+        if(!e||!set)return;var step=f==='a'?e.sa:e.sb;
+        set[f]=Math.max(0,Math.round((Number(set[f])+dir*step)*100)/100);set.touched=true;
+        UI.patchSet(e,j);Store.save();return;
+      }
+      case 'tag':{var e2=exById(d('ex')),s2=e2&&e2.sets[Number(d('i'))];
+        if(!s2)return;var tags=['N','W','D','F'];s2.tag=tags[(tags.indexOf(s2.tag||'N')+1)%4];UI.patchSet(e2,Number(d('i')));Store.save();return;}
+      case 'done':{
+        var e3=exById(d('ex')),j3=Number(d('i')),x=e3&&e3.sets[j3];if(!x)return;
+        if(x.done){x.done=false;UI.patchSet(e3,j3);Store.save();return;}
+        x.done=true;x.touched=true;x.doneAt=Date.now();UI.patchSet(e3,j3);Store.save();
+        if(st.restOn)Timer.start(st.rest);
+        if(navigator.vibrate)try{navigator.vibrate(18);}catch(er){}
+        return;
+      }
+      case 'delset':{var e4=exById(d('ex')),j4=Number(d('i'));
+        if(!e4)return;if(e4.sets.length<=1){toast('至少保留 1 组');return;}
+        e4.sets.splice(j4,1);saveRender(true);return;}
+      case 'addset':{var e5=exById(d('ex'));if(!e5)return;
+        var last=e5.sets[e5.sets.length-1]||{a:e5.sa||2.5,b:8,tag:'N'};
+        e5.sets.push({a:last.a,b:last.b,tag:last.tag||'N',done:false,ghost:false,touched:true});saveRender(true);
+        toast('已复制上一组数值追加 1 组');return;}
+      case 'collapse':{Runtime.collapsed[d('ex')]=!Runtime.collapsed[d('ex')];UI.render(true);return;}
+      case 'delex':{var id=d('ex');s.today.exercises=s.today.exercises.filter(function(x){return x.id!==id;});saveRender(true);toast('已移除动作');return;}
+      case 'addex-open':Runtime.sheetScope=d('scope')||'fit';Runtime.sheetFilter='all';Runtime.sheetQuery='';UI.addExSheet();return;
+      case 'pick-scope':Runtime.sheetScope=d('v');Runtime.sheetFilter='all';Runtime.sheetQuery='';UI.addExSheet();return;
+      case 'pick-filter':Runtime.sheetFilter=d('v');UI.addExSheet();return;
+      case 'addex-pick':{var lib=Engine.allExercises().filter(function(x){return x.name===d('name');})[0];
+        if(!lib)return;s.today.exercises.push(Engine.exFromLib(lib));UI.closeSheet();saveRender(true);toast('已添加 '+lib.name);return;}
+      case 'custom-ex-open':UI.customExSheet();return;
+      case 'custom-ex-save':{
+        var name=(document.getElementById('ceName')||{}).value.trim();if(!name){toast('请填写动作名称');return;}
+        var lib={id:'custom_'+uid(),name:name,muscle:document.getElementById('ceMuscle').value,eq:document.getElementById('ceEq').value,
+          pinned:false,mode:'strength',da:Number(document.getElementById('ceA').value)||0,db:Number(document.getElementById('ceB').value)||10,
+          la:'kg',lb:'次',sa:2.5,sb:1,volume:true,custom:true};
+        s.customExercises.push(lib);LIB_BY_NAME[name]=lib;
+        s.today.exercises.push(Engine.exFromLib(lib));UI.closeSheet();saveRender(true);toast('✅ 自定义动作已保存并加入今日');return;
+      }
+      /* --- 一键完成 --- */
+      case 'finish':{
+        if(!td.exercises.length){toast('先添加动作再打卡');return;}
+        td.exercises.forEach(function(e){e.sets.forEach(function(x){if(!x.done){x.done=true;x.touched=true;}});});
+        td.finished=true;var ses=Engine.sessionFrom(td,false);
+        s.sessions.push(ses);Engine.advance(td.nodeId);
+        s.today=Engine.plan(Engine.currentNode().id);
+        s.aiCache.review=null;s.aiCache.prescription=null;
+        Timer.stop();Store.save();UI.render();UI.summarySheet(ses);return;
+      }
+      /* --- 休息计时 --- */
+      case 'rest-adjust':Timer.adjust(Number(d('d')));return;
+      case 'rest-skip':Timer.stop();toast('已跳过休息');return;
+      /* --- AI --- */
+      case 'ai-review':{
+        if(Runtime.reviewBusy)return;Runtime.reviewBusy=true;UI.render(true);
+        Engine.aiReview().then(function(r){r.at=new Date().toLocaleString('zh-CN',{hour12:false}).slice(5);
+          s.aiCache.review=r;Runtime.reviewBusy=false;Store.save();UI.render(true);toast('复盘已生成');})
+          .catch(function(e){Runtime.reviewBusy=false;UI.render(true);toast('AI 请求失败，已回退本地引擎：'+e.message);
+            var r=Engine.localReview();r.at='本地回退';s.aiCache.review=r;Store.save();UI.render(true);});return;
+      }
+      case 'ai-rx':{
+        if(Runtime.rxBusy)return;Runtime.rxBusy=true;UI.render(true);
+        Engine.aiPrescription().then(function(r){r.next_node_name=Engine.node(r.next_node||Engine.nextNode().id).n;
+          s.aiCache.prescription=r;Runtime.rxBusy=false;Store.save();UI.render(true);toast('下一练处方已生成');})
+          .catch(function(e){Runtime.rxBusy=false;UI.render(true);toast('AI 请求失败，已回退本地引擎：'+e.message);
+            var r=Engine.localPrescription();s.aiCache.prescription=r;Store.save();UI.render(true);});return;
+      }
+      case 'ai-adopt':{
+        var rx=s.aiCache.prescription;if(!rx)return;
+        var n=Engine.adopt(rx);Runtime.tab='workout';Runtime.collapsed={};Store.save();UI.render();
+        toast('🚀 已载入 '+n+' 个动作，逐组点 ✓ 即可');return;
+      }
+      case 'ai-test':{
+        if(!Runtime.keyPlain){toast('请先填写 API Key');return;}
+        toast('正在测试连接…');
+        Engine.callAI([{role:'user',content:'只回复两个字：正常'}],false).then(function(txt){
+          UI.openSheet('接口测试','<div class="pill green">✓ 连接成功</div><div class="md" style="margin-top:10px">'+esc(txt.slice(0,200))+'</div>');
+        }).catch(function(e){UI.openSheet('接口测试','<div class="pill red">✕ 连接失败</div><div class="md" style="margin-top:10px">'+esc(e.message)+'</div>');});return;
+      }
+      case 'ai-demo':st.ai.demo=!st.ai.demo;saveRender(true);
+        toast(st.ai.demo?'已切换为本地智能引擎（免 Key）':(Runtime.keyPlain?'已启用在线 DeepSeek':'未填写 Key，仍走本地引擎'));return;
+      /* --- 设置 --- */
+      case 'profile':{
+        var p=d('id');st.profile=p;
+        if(p!=='custom')EQUIPMENT.forEach(function(e){st.equipment[e.id]=p==='home'?!!e.home:!!e.gym;});
+        replan(s.today.nodeId);
+        toast(p==='custom'?'已保持当前自定义勾选':(p==='home'?'🏠 已切换居家器械预设':'🏢 已切换商业健身房预设'));return;
+      }
+      case 'toggle-eq':st.equipment[d('id')]=!st.equipment[d('id')];st.profile='custom';
+        replan(s.today.nodeId);return;
+      case 'rest-toggle':st.restOn=!st.restOn;if(!st.restOn)Timer.stop();saveRender(true);return;
+      case 'set-rest':st.rest=Number(d('v'));saveRender(true);toast('组间休息已设为 '+st.rest+'s');return;
+      case 'notify-toggle':{
+        if(!Notify.supported){toast('当前浏览器不支持系统通知');return;}
+        if(st.notify&&Notify.state()==='granted'){st.notify=false;saveRender(true);toast('已关闭系统通知');return;}
+        Notify.enable().then(function(r){
+          if(r==='granted'){st.notify=true;toast('✅ 休息到点将发送系统通知');}
+          else if(r==='denied'){toast('通知权限已被浏览器拒绝，请在站点设置中允许');}
+          else{toast('未获得通知权限，仍会震动 + 提示音');}
+          saveRender(true);
+        });return;
+      }
+      case 'bw':st.bodyweight=clamp(st.bodyweight+Number(d('d')),30,250);saveRender(true);return;
+      /* --- 数据 --- */
+      case 'export-json':download('ironlog_backup_'+stamp()+'.json',JSON.stringify(Store.data,null,2));toast('✅ 全量 JSON 备份已导出');return;
+      case 'export-csv':download('ironlog_workouts_'+stamp()+'.csv',Engine.toCSV(),'text/csv;charset=utf-8');toast('✅ CSV 已导出');return;
+      case 'import-json':
+        if(Native.on){Native.pick().then(function(r){App.applyImport(r.text);}).catch(function(e){toast('选择文件失败：'+e.message);});return;}
+        document.getElementById('importFile').click();return;
+      case 'reset-demo':confirmSheet('恢复示例数据','这会清空当前的全部训练记录、自定义动作与配置，并重新载入 3 条示例训练。建议先导出 JSON 备份。',function(){
+        Store.reset();Runtime.keyPlain='';Engine.ensureToday();UI.render();toast('已恢复示例数据');});return;
+      case 'clear-all':confirmSheet('清空全部数据','⚠ 将删除本机所有训练日志与配置，且不可撤销！请务必先导出 JSON 备份。',function(){
+        var d0=Store.defaults();d0.sessions=[];d0.customExercises=[];
+        Store.data=d0;Runtime.keyPlain='';Engine.ensureToday();Store.save();UI.render();toast('已清空全部数据');});return;
+    }
+  }
+};
+
+window.IronLog={Store:Store,Engine:Engine,UI:UI,App:App,LIB:LIB,Runtime:Runtime,Timer:Timer};
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',function(){App.boot();});else App.boot();
+})();
+</script>
+</body>
+</html>
