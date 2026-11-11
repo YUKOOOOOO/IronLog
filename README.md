@@ -2,20 +2,20 @@
 
 **本地优先的极简健身追踪器 + AI 教练。** 一个 HTML 文件就是完整应用，零依赖、零后端、离线可用；另附两个可直接侧载安装的 Android APK。
 
-> **在线体验**：部署 GitHub Pages 后访问 `https://YOUR_USERNAME.github.io/YOUR_REPO/`
-> 把 `YOUR_USERNAME` / `YOUR_REPO` 换成自己的用户名和仓库名即可；用 `publish.py` 推送时会自动替换。
+> **在线体验**：部署 GitHub Pages 后访问 `https://yukoooooo.github.io/IronLog/`
+> 把 `yukoooooo` / `IronLog` 换成自己的用户名和仓库名即可；用 `publish.py` 推送时会自动替换。
 > [下载页](./download.html) 会自动识别 Pages 地址，无需手改任何链接。
 
 | 我想要 | 去哪里 |
 | --- | --- |
-| 立即在线使用 | [https://YOUR_USERNAME.github.io/YOUR_REPO/](https://YOUR_USERNAME.github.io/YOUR_REPO/) |
-| 下载 Android 安装包 | [下载页](https://YOUR_USERNAME.github.io/YOUR_REPO/download.html) 或 [Releases](https://github.com/YOUR_USERNAME/YOUR_REPO/releases) |
+| 立即在线使用 | [https://yukoooooo.github.io/IronLog/](https://yukoooooo.github.io/IronLog/) |
+| 下载 Android 安装包 | [下载页](https://yukoooooo.github.io/IronLog/download.html) 或 [Releases](https://github.com/yukoooooo/IronLog/releases) |
 | 看源码 / 自己构建 | 本仓库 `android/`、`native/` 目录 |
 
 | 入口 | 适合场景 | 需要什么 |
 | --- | --- | --- |
-| [在线网页版](https://YOUR_USERNAME.github.io/YOUR_REPO/) | 电脑/手机浏览器，或用「添加到主屏幕」装成 PWA | 现代浏览器，无需安装 |
-| [Android 下载页](https://YOUR_USERNAME.github.io/YOUR_REPO/download.html) | 想要原生体验、桌面快捷方式、后台通知 | Android 7.0+，允许「未知来源」 |
+| [在线网页版](https://yukoooooo.github.io/IronLog/) | 电脑/手机浏览器，或用「添加到主屏幕」装成 PWA | 现代浏览器，无需安装 |
+| [Android 下载页](https://yukoooooo.github.io/IronLog/download.html) | 想要原生体验、桌面快捷方式、后台通知 | Android 7.0+，允许「未知来源」 |
 | [独立单文件](./IronLog-完整版.html) | 存档、离线双击、发给朋友 | 只需一个浏览器 |
 
 > 上面几个 `YOUR_...` 占位符在 `publish.py` 推送后会自动替换成真实地址。若手动部署，全局替换一次即可。
@@ -75,7 +75,7 @@ python -m http.server 8080
 
 ### Android
 
-从 [下载页](https://YOUR_USERNAME.github.io/YOUR_REPO/download.html) 或 [Releases](https://github.com/YOUR_USERNAME/YOUR_REPO/releases) 获取 APK，安装时允许「未知来源」。两个版本可共存对比：
+从 [下载页](https://yukoooooo.github.io/IronLog/download.html) 或 [Releases](https://github.com/yukoooooo/IronLog/releases) 获取 APK，安装时允许「未知来源」。两个版本可共存对比：
 
 | APK | 包名 | 特点 |
 | --- | --- | --- |
@@ -94,7 +94,7 @@ python -m http.server 8080
 2. 打开 **Settings → Pages → Build and deployment**，Source 选 **GitHub Actions**
 3. 等待 Actions 完成，访问 `https://<用户名>.github.io/<仓库名>/`
 
-站点内容包含网页版、PWA 资源、[下载页](https://YOUR_USERNAME.github.io/YOUR_REPO/download.html) 和两个 APK，因此访客可以直接在线使用，也可以直接点击下载安装。
+站点内容包含网页版、PWA 资源、[下载页](https://yukoooooo.github.io/IronLog/download.html) 和两个 APK，因此访客可以直接在线使用，也可以直接点击下载安装。
 
 **发布 Release（可选）**：打一个 `v*` 标签即可自动创建 Release 并附上两个 APK：
 
