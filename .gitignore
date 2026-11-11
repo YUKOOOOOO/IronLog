@@ -1,0 +1,32 @@
+# ============ 签名密钥：绝对不要提交到公开仓库 ============
+**/keystore/
+*.jks
+*.keystore
+*.pk8
+*.pem
+*.pepk
+*.p12
+
+# ============ 构建中间产物 ============
+**/build/
+**/obj/
+**/.gradle/
+**/out/
+*.apk.idsig
+*.class
+*.dex.tmp
+
+# ============ 开发临时文件 ============
+__pycache__/
+*.pyc
+*.log
+.DS_Store
+Thumbs.db
+.pv-*/
+.h-*/
+_preview*
+_pv_*
+_verify*
+_check.js
+
+# 注意：*.apk 不忽略 —— 下载页与 Release 需要这两个已签名的安装包

@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="theme-color" content="#0D0F12">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -342,6 +342,107 @@ pre.json{background:#0B0E11;border:1px solid var(--line);border-radius:11px;padd
 .ai-block .li b{color:var(--txt)}
 .ai-block .plan-txt{font-size:11.5px;color:var(--dim);line-height:1.75}
 #tplDate,.scope-card input[type=date]{color-scheme:dark}
+
+/* ============================================================
+   v1.3 · 手机浏览器 App 化适配（排版 / 触控 / 手势观感）
+   ============================================================ */
+:root{--sal:env(safe-area-inset-left,0px);--sar:env(safe-area-inset-right,0px)}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%;height:100%}
+body{min-height:100%;overflow-x:hidden}
+/* overflow:hidden 会创建滚动容器，令 .top 的 sticky 失效；clip 不会 */
+#app{overflow:hidden;overflow:clip;min-height:100vh;min-height:100dvh}
+.top{padding-left:calc(16px + var(--sal));padding-right:calc(16px + var(--sar));
+  transition:box-shadow .2s,border-color .2s}
+.top.scrolled{box-shadow:0 8px 26px rgba(0,0,0,.5);border-bottom-color:rgba(255,255,255,.09)}
+#view{padding-left:calc(14px + var(--sal));padding-right:calc(14px + var(--sar));
+  padding-bottom:calc(86px + var(--sab));min-height:70vh;min-height:70dvh}
+.tabbar{padding-left:calc(6px + var(--sal));padding-right:calc(6px + var(--sar))}
+.tabbar button{position:relative}
+.tabbar button.on:before{content:"";position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+  width:26px;height:3px;border-radius:3px;background:var(--acc);box-shadow:0 0 10px rgba(16,185,129,.6)}
+#sheet{max-height:86vh;max-height:86dvh;overscroll-behavior:contain}
+.sheet-b{overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+.nodes,.cal{-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity}
+button,.top,.tabbar,.node,.chip,.list-item,.ex-head,.sheet-h,.sheet-grab{
+  -webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
+@keyframes viewfade{from{opacity:.35;transform:translateY(5px)}to{opacity:1;transform:none}}
+#view.fadein{animation:viewfade .2s ease-out}
+
+/* 组行改弹性列：任何屏宽都不再横向溢出（原固定 88px+88px 在窄屏必爆） */
+.sethead,.setrow{grid-template-columns:26px minmax(0,1fr) minmax(0,1fr) 38px 22px;gap:5px}
+.step .val{min-width:0;overflow:hidden;text-overflow:ellipsis}
+
+@media (pointer:coarse),(max-width:560px){
+  /* 1) 所有输入框 >=16px，避免 iOS Safari 聚焦时整页缩放 */
+  #view input,#view select,#view textarea,#sheet input,#sheet select,#sheet textarea{font-size:16px}
+  .field,.sheet-search{min-height:46px;font-size:16px}
+  .scope-card .field{font-size:16px;min-height:44px}
+  /* 2) 触控目标按原生 APP 标准放大 */
+  .btn{min-height:46px;font-size:13.5px}
+  .btn.sm{min-height:38px}
+  .chip{min-height:40px;padding:0 13px}
+  .chip.sm{min-height:38px}
+  button.t-xs.dim[data-act="tab"]{min-height:36px;padding:0 5px}
+  .seg>button{min-height:40px}
+  .iconbtn{width:40px;height:40px}
+  .sheet-scope button{min-height:48px}
+  .rest-btns button{min-height:48px}
+  .tabbar button{min-height:58px;padding:8px 0;gap:4px}
+  .del-ses,.tpl-card .del-ses{min-width:40px;height:40px}
+  .list-item{padding:13px 0}
+  .eq{padding:13px 10px}
+  .ex-head{padding:15px 12px}
+  .ex-foot{padding-bottom:14px}
+  .finish{min-height:62px}
+  .node{padding:13px 10px}
+  .sheet-grab{width:44px;height:5px;margin-top:10px}
+  .sheet-h{padding:12px 16px}
+  .sheet-b{padding-bottom:calc(24px + var(--sab))}
+  .tagbtn,.check,.xbtn{height:40px}
+  .setrow .del{height:38px}
+  /* 3) 组行：弹性列 + 外扩点击热区（视觉尺寸不变形） */
+  .sethead,.setrow{grid-template-columns:
+    clamp(24px,8vw,30px) minmax(0,1fr) minmax(0,1fr) clamp(34px,11vw,42px) clamp(22px,7vw,26px);gap:5px}
+  .setrow{padding-top:6px;padding-bottom:6px}
+  .step{height:40px}
+  .step button{width:clamp(24px,8vw,30px);position:relative}
+  .step button:after{content:"";position:absolute;inset:-4px -6px}
+  .step .val{font-size:12.5px}
+  .tagbtn{width:clamp(24px,8vw,30px);position:relative}
+  .tagbtn:after{content:"";position:absolute;inset:-2px -6px}
+  .check{width:clamp(34px,11vw,42px);position:relative}
+  .check:after{content:"";position:absolute;inset:-2px -3px}
+  .xbtn{width:clamp(22px,7vw,26px);position:relative}
+  .xbtn:after{content:"";position:absolute;inset:-4px -8px}
+  .setrow .del{width:40px;right:-44px}
+  .setrow.swiped{transform:translateX(-50px)}
+  /* 4) 点击反馈更接近原生 */
+  button:active{opacity:.74}
+  .list-item:active{background:rgba(255,255,255,.035)}
+}
+@media (pointer:coarse) and (max-width:560px){
+  .md{font-size:13px;line-height:1.8}
+  .t-xs{font-size:11.5px}
+  .ex-meta{font-size:11px}
+  .scope-note,.body-hint{font-size:11px}
+}
+@media (max-width:360px){
+  .stat-grid.four{grid-template-columns:repeat(2,1fr)}
+  .rest-num{font-size:34px}
+  .rest-ring,.rest-ring svg{width:68px;height:68px}
+  .rest-ring .rt{font-size:19px}
+  #rest{padding:12px}
+}
+/* 极窄屏（<=340px）：点击热区再补一点，数值字号收紧避免截断 */
+@media (max-width:340px){
+  .step button:after{inset:-4px -8px}
+  .tagbtn:after{inset:-2px -8px}
+  .xbtn:after{inset:-4px -9px}
+  .step .val{font-size:11.5px}
+}
+@media (min-width:600px){
+  #app{border-left:1px solid var(--line);border-right:1px solid var(--line)}
+}
 </style>
 </head>
 <body>
@@ -1638,7 +1739,7 @@ const UI={
       (Native.on?'<br><span style="color:var(--accent)">Android 原生版：导出文件写入系统「下载 / Download」目录，导入使用系统文件选择器。</span>':'')+'</div>'+
       '<div class="divider"></div><div class="row" style="gap:8px"><button class="btn sm" data-act="reset-demo">'+icon('refresh')+'恢复示例数据</button>'+
       '<button class="btn sm danger" data-act="clear-all">'+icon('trash')+'清空全部数据</button></div></div>';
-    h+='<div class="t-xs muted" style="text-align:center;padding:8px 10px 20px;line-height:1.8">IronLog v1.2 · Local-First<br>'+
+    h+='<div class="t-xs muted" style="text-align:center;padding:8px 10px 20px;line-height:1.8">IronLog v1.3 · Local-First<br>'+
       ssCount()+' 条训练记录 · '+(s.customExercises||[]).length+' 个自定义动作 · '+((s.templates||[]).length)+' 个训练模板 · '+(Store.memOnly?'内存模式（localStorage 不可用）':'localStorage 持久化')+'<br>'+
       (Native.on?'<span style="color:var(--accent)">Android 原生版 '+(function(){var i=Native.info();return i&&i.version?i.version:'';})()+' · 原生 HTTP 无 CORS 直连 · 原生震动 · 离线全功能</span>'
         :'全平台统一版本 · 双击即用、断网可用、数据只存本机 · 静态服务器打开可「添加到主屏幕」全屏运行')+'</div>';
@@ -1952,11 +2053,67 @@ const App={
       document.querySelectorAll('.setrow.swiped').forEach(function(r){if(r!==row)r.classList.remove('swiped');});
       if(Math.abs(dx)>55&&Math.abs(dy)<40){row.classList.toggle('swiped',dx<0);}row=null;
     },{passive:true});
+
+    /* ===== v1.3 手机浏览器 App 化：原生式手势与反馈 ===== */
+    var buzz=function(ms){try{if(navigator.vibrate)navigator.vibrate(ms||8);}catch(e){}};
+    /* 轻微触感反馈（高频的加/减、打卡除外） */
+    document.addEventListener('click',function(ev){
+      var t=ev.target.closest('[data-act]');if(!t)return;
+      var a=t.getAttribute('data-act');
+      if(a!=='step'&&a!=='tag'&&a!=='done')buzz(6);
+    },{passive:true});
+    /* 顶部栏滚动阴影 */
+    var topEl=document.querySelector('.top'),scTick=false;
+    window.addEventListener('scroll',function(){
+      if(scTick)return;scTick=true;
+      requestAnimationFrame(function(){topEl.classList.toggle('scrolled',window.scrollY>6);scTick=false;});
+    },{passive:true});
+    /* 左右滑动切换底部分页（避开组行、横向滚动条、输入区） */
+    var swX=0,swY=0,swT=0,swOK=false,viewEl=document.getElementById('view');
+    viewEl.addEventListener('touchstart',function(ev){
+      if(ev.touches.length!==1){swOK=false;return;}
+      var t=ev.target;
+      swOK=document.getElementById('sheet').classList.contains('hidden') &&
+            !t.closest('.setrow,.nodes,.cal,.trend,input,select,textarea');
+      swX=ev.touches[0].clientX;swY=ev.touches[0].clientY;swT=Date.now();
+    },{passive:true});
+    viewEl.addEventListener('touchend',function(ev){
+      if(!swOK)return;swOK=false;
+      var dx=ev.changedTouches[0].clientX-swX,dy=ev.changedTouches[0].clientY-swY;
+      if(Math.abs(dx)<72||Math.abs(dx)<Math.abs(dy)*1.7||Date.now()-swT>700)return;
+      var ids=UI.tabDefs.map(function(t){return t.id;}),i=ids.indexOf(Runtime.tab),j=i+(dx<0?1:-1);
+      if(j<0||j>=ids.length)return;
+      Runtime.tab=ids[j];UI.render();
+      var v=document.getElementById('view');v.classList.remove('fadein');void v.offsetWidth;v.classList.add('fadein');
+      buzz(10);
+    },{passive:true});
+    /* 从弹层抓手/标题栏下拉关闭 */
+    var shEl=document.getElementById('sheet'),dY=0,dOK=false;
+    shEl.addEventListener('touchstart',function(ev){
+      dOK=!!ev.target.closest('.sheet-grab,.sheet-h');
+      dY=ev.touches[0].clientY;shEl.style.transition='none';
+    },{passive:true});
+    shEl.addEventListener('touchmove',function(ev){
+      if(!dOK)return;
+      var dy=ev.changedTouches[0].clientY-dY;
+      if(dy>0)shEl.style.transform='translate(-50%,'+Math.min(dy,300)+'px)';
+    },{passive:true});
+    shEl.addEventListener('touchend',function(ev){
+      if(!dOK)return;
+      var dy=ev.changedTouches[0].clientY-dY;
+      dOK=false;
+      shEl.style.transition='transform .18s ease-out';shEl.style.transform='';
+      if(dy>85)UI.closeSheet();
+      setTimeout(function(){shEl.style.transition='';},200);
+    },{passive:true});
+    /* 关闭弹层时清理内联位移 */
+    var _close=UI.closeSheet;
+    UI.closeSheet=function(){shEl.style.transition='';shEl.style.transform='';_close.call(UI);};
   },
   act:function(a,d,t,ev){
     var s=Store.data,st=s.settings,td=s.today;
     switch(a){
-      case 'tab':Runtime.tab=d('tab');UI.render();return;
+      case 'tab':Runtime.tab=d('tab');UI.render();{var vv=document.getElementById('view');vv.classList.remove('fadein');void vv.offsetWidth;vv.classList.add('fadein');}return;
       case 'sheet-close':UI.closeSheet();return;
       /* --- 分化轮换 --- */
       case 'node':{
